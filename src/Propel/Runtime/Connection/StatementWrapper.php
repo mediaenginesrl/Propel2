@@ -10,6 +10,8 @@
 
 namespace Propel\Runtime\Connection;
 
+use Propel\Runtime\Connection\StatementInterface;
+
 /**
  * Wraps a Statement class, providing logging.
  *
@@ -67,7 +69,7 @@ class StatementWrapper implements StatementInterface, \IteratorAggregate
     }
 
     /**
-     * @param  array $options Optional driver options
+     * @param array $options Optional driver options
      * @return $this
      */
     public function prepare($options)
@@ -172,8 +174,8 @@ class StatementWrapper implements StatementInterface, \IteratorAggregate
      * Returns the number of columns in the result set
      *
      * @return integer Returns the number of columns in the result set represented
-     *                 by the PDOStatement object. If there is no result set,
-     *                 this method should return 0.
+     *                              by the PDOStatement object. If there is no result set,
+     *                              this method should return 0.
      */
     public function columnCount()
     {
@@ -186,12 +188,12 @@ class StatementWrapper implements StatementInterface, \IteratorAggregate
      * Returns a boolean value indicating success.
      * Overridden for query counting and logging.
      *
-     * @param  array   $input_parameters
+     * @param  string  $parameters
      * @return boolean
      */
-    public function execute($input_parameters = null)
+    public function execute($parameters = null)
     {
-        $return = $this->statement->execute($input_parameters);
+        $return = $this->statement->execute($parameters);
         if ($this->connection->useDebug) {
             $sql = $this->getExecutedQueryString();
             $this->connection->log($sql);
@@ -251,8 +253,8 @@ class StatementWrapper implements StatementInterface, \IteratorAggregate
      * Returns a single column from the next row of a result set.
      *
      * @param integer $columnIndex 0-indexed number of the column you wish to retrieve from the row. If no
-     *                             value is supplied, PDOStatement->fetchColumn()
-     *                             fetches the first column.
+     *                                      value is supplied, PDOStatement->fetchColumn()
+     *                                      fetches the first column.
      *
      * @return string A single column in the next row of a result set.
      */
@@ -282,7 +284,7 @@ class StatementWrapper implements StatementInterface, \IteratorAggregate
     /**
      * Return the internal statement, which is traversable
      *
-     * @return \Traversable
+     * @return Traversable
      */
     public function getIterator()
     {

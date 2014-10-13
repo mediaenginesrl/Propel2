@@ -37,6 +37,22 @@ interface GeneratorConfigInterface
     public function getConfiguredPluralizer();
 
     /**
+     * Returns a specific propel (renamed) property from the build.
+     *
+     * @param  string $name
+     * @return mixed
+     */
+    public function getBuildProperty($name);
+
+    /**
+     * Sets a specific propel (renamed) property from the build.
+     *
+     * @param string $name
+     * @param mixed  $value
+     */
+    public function setBuildProperty($name, $value);
+
+    /**
      * Creates and configures a new Platform class.
      *
      * @param  ConnectionInterface $con
@@ -44,25 +60,11 @@ interface GeneratorConfigInterface
      * @return PlatformInterface
      */
     public function getConfiguredPlatform(ConnectionInterface $con = null, $database = null);
-
+    
     /**
      * Returns the behavior locator.
-     *
+     * 
      * @return BehaviorLocator
      */
     public function getBehaviorLocator();
-
-    /**
-     * Return a specific configuration property.
-     * The name of the requested property must be given as a string, representing its hierarchy in the configuration
-     * array, with each level separated by a dot. I.e.:
-     * <code> $config['database']['adapter']['mysql']['tableType']</code>
-     * is expressed by:
-     * <code>'database.adapter.mysql.tableType</code>
-     *
-     * @param string $name The name of property, expressed as a dot separated level hierarchy
-     * @throws \Propel\Common\Config\Exception\InvalidArgumentException
-     * @return mixed The configuration property
-     */
-    public function getConfigProperty($name);
 }

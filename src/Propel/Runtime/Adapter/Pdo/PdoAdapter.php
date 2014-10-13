@@ -20,14 +20,13 @@ use Propel\Runtime\Map\ColumnMap;
 use Propel\Runtime\Map\DatabaseMap;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Util\PropelDateTime;
-use Propel\Generator\Model\PropelTypes;
+use Propel\Runtime\Util\PropelColumnTypes;
 
 /**
  * Base for PDO database adapters.
  */
 abstract class PdoAdapter
 {
-
     /**
      * Build database connection
      *
@@ -55,7 +54,7 @@ abstract class PdoAdapter
         $driver_options = array();
         if (isset($conparams['options']) && is_array($conparams['options'])) {
             foreach ($conparams['options'] as $option => $optiondata) {
-                $value = $optiondata;
+                $value = $optiondata['value'];
                 if (is_string($value) && false !== strpos($value, '::')) {
                     if (!defined($value)) {
                         throw new InvalidArgumentException(sprintf('Error processing driver options for dsn "%s"', $dsn));
@@ -77,14 +76,6 @@ abstract class PdoAdapter
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public function compareRegex($left, $right)
-    {
-        return sprintf("%s REGEXP %s", $left, $right);
-    }
-
-    /**
      * @return string
      */
     public function getAdapterId()
@@ -98,7 +89,7 @@ abstract class PdoAdapter
     /**
      * Prepare the parameters for a Connection
      *
-     * @param array $conparams the connection parameters from the configuration
+     * @param array the connection parameters from the configuration
      *
      * @return array the modified parameters
      */
@@ -128,8 +119,10 @@ abstract class PdoAdapter
         }
 
         if (isset($settings['queries']) && is_array($settings['queries'])) {
-            foreach ($settings['queries'] as $query) {
-                $con->exec($query);
+            foreach ($settings['queries'] as $queries) {
+                foreach ((array) $queries as $query) {
+                    $con->exec($query);
+                }
             }
         }
     }
@@ -209,32 +202,6 @@ abstract class PdoAdapter
     }
 
     /**
-     * Quotes full qualified column names and table names.
-     *
-     * book.author_id => `book`.`author_id`
-     * author_id => `author_id`
-     *
-     * @param string $text
-     * @return string
-     */
-    public function quote($text)
-    {
-        if (false !== ($pos = strrpos($text, '.'))) {
-            $table = substr($text, 0, $pos);
-            $column = substr($text, $pos + 1);
-        } else {
-            $table = '';
-            $column = $text;
-        }
-
-        if ($table) {
-            return $this->quoteIdentifierTable($table) . '.' . $this->quoteIdentifier($column);
-        } else {
-            return $this->quoteIdentifier($column);
-        }
-    }
-
-    /**
      * Quotes a database table which could have space separating it from an alias,
      * both should be identified separately. This doesn't take care of dots which
      * separate schema names from table names. Adapters for RDBMs which support
@@ -304,15 +271,15 @@ abstract class PdoAdapter
         /** @var $dt PropelDateTime */
         if ($dt = PropelDateTime::newInstance($value)) {
             switch ($cMap->getType()) {
-                case PropelTypes::TIMESTAMP:
-                case PropelTypes::BU_TIMESTAMP:
+                case PropelColumnTypes::TIMESTAMP:
+                case PropelColumnTypes::BU_TIMESTAMP:
                     $value = $dt->format($this->getTimestampFormatter());
                     break;
-                case PropelTypes::DATE:
-                case PropelTypes::BU_DATE:
+                case PropelColumnTypes::DATE:
+                case PropelColumnTypes::BU_DATE:
                     $value = $dt->format($this->getDateFormatter());
                     break;
-                case PropelTypes::TIME:
+                case PropelColumnTypes::TIME:
                     $value = $dt->format($this->getTimeFormatter());
                     break;
             }
@@ -332,15 +299,14 @@ abstract class PdoAdapter
     }
 
     /**
+     * @param string   $sql
      * @param Criteria $criteria
-     *
-     * @return string
      */
-    public function getGroupBy(Criteria $criteria)
+    public function applyGroupBy(&$sql, Criteria $criteria)
     {
         $groupBy = $criteria->getGroupByColumns();
         if ($groupBy) {
-            return ' GROUP BY ' . implode(',', $groupBy);
+            $sql .= ' GROUP BY ' . implode(',', $groupBy);
         }
     }
 
@@ -362,6 +328,21 @@ abstract class PdoAdapter
     public function getTimeFormatter()
     {
         return 'H:i:s';
+    }
+
+    /**
+     * Should Column-Names get identifiers for inserts or updates.
+     * By default false is returned -> backwards compatibility.
+     *
+     * it`s a workaround...!!!
+     *
+     * @deprecated
+     *
+     * @return boolean
+     */
+    public function useQuoteIdentifier()
+    {
+        return false;
     }
 
     /**
@@ -392,10 +373,14 @@ abstract class PdoAdapter
         }
 
         if ($realTableName = $criteria->getTableForAlias($tableName)) {
-            $realTableName = $criteria->quoteIdentifierTable($realTableName);
+            if ($this->useQuoteIdentifier()) {
+                $realTableName = $this->quoteIdentifierTable($realTableName);
+            }
             $sql .= $tableName . ' FROM ' . $realTableName . ' AS ' . $tableName;
         } else {
-            $tableName = $criteria->quoteIdentifierTable($tableName);
+            if ($this->useQuoteIdentifier()) {
+                $tableName = $this->quoteIdentifierTable($tableName);
+            }
             $sql .= 'FROM ' . $tableName;
         }
 
@@ -602,5 +587,4 @@ abstract class PdoAdapter
 
         return $stmt->bindValue($parameter, $value, $cMap->getPdoType());
     }
-
 }

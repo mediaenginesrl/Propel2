@@ -11,7 +11,6 @@
 namespace Propel\Generator\Platform;
 
 use Propel\Generator\Exception\EngineException;
-use Propel\Generator\Model\Column;
 use Propel\Generator\Model\Database;
 use Propel\Generator\Model\Domain;
 use Propel\Generator\Model\ForeignKey;
@@ -56,7 +55,7 @@ class OraclePlatform extends DefaultPlatform
         $this->setSchemaDomainMapping(new Domain(PropelTypes::BINARY, 'LONG RAW'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::VARBINARY, 'BLOB'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARBINARY, 'LONG RAW'));
-        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'LONG RAW'));
+        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'NVARCHAR2', '2000'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::PHP_ARRAY, 'NVARCHAR2', '2000'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::ENUM, 'NUMBER', '3', '0'));
 
@@ -171,7 +170,7 @@ CREATE SEQUENCE %s
     public function getDropTableDDL(Table $table)
     {
         $ret = "
-DROP TABLE " . $this->quoteIdentifier($table->getName(), $table) . " CASCADE CONSTRAINTS;
+DROP TABLE " . $this->quoteIdentifier($table->getName()) . " CASCADE CONSTRAINTS;
 ";
         if ($table->getIdMethod() == IdMethod::NATIVE) {
             $ret .= "
@@ -188,7 +187,7 @@ DROP SEQUENCE " . $this->quoteIdentifier($this->getSequenceName($table)) . ";
         // pk constraint name must be 30 chars at most
         $tableName = substr($tableName, 0, min(27, strlen($tableName)));
 
-        return $tableName . '_pk';
+        return $tableName . '_PK';
     }
 
     public function getPrimaryKeyDDL(Table $table)
@@ -208,7 +207,7 @@ DROP SEQUENCE " . $this->quoteIdentifier($this->getSequenceName($table)) . ";
     {
         return sprintf('CONSTRAINT %s UNIQUE (%s)',
             $this->quoteIdentifier($unique->getName()),
-            $this->getColumnListDDL($unique->getColumnObjects())
+            $this->getColumnListDDL($unique->getColumns())
         );
     }
 
@@ -221,9 +220,9 @@ DROP SEQUENCE " . $this->quoteIdentifier($this->getSequenceName($table)) . ";
     FOREIGN KEY (%s) REFERENCES %s (%s)";
         $script = sprintf($pattern,
             $this->quoteIdentifier($fk->getName()),
-            $this->getColumnListDDL($fk->getLocalColumnObjects()),
+            $this->getColumnListDDL($fk->getLocalColumns()),
             $this->quoteIdentifier($fk->getForeignTableName()),
-            $this->getColumnListDDL($fk->getForeignColumnObjects())
+            $this->getColumnListDDL($fk->getForeignColumns())
         );
         if ($fk->hasOnDelete()) {
             $script .= "
@@ -242,10 +241,7 @@ DROP SEQUENCE " . $this->quoteIdentifier($this->getSequenceName($table)) . ";
         return true;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function doQuoting($text)
+    public function quoteIdentifier($text)
     {
         return $text;
     }
@@ -346,7 +342,7 @@ CREATE %sINDEX %s ON %s (%s)%s;
             $index->isUnique() ? 'UNIQUE ' : '',
             $this->quoteIdentifier($index->getName()),
             $this->quoteIdentifier($index->getTable()->getName()),
-            $this->getColumnListDDL($index->getColumnObjects()),
+            $this->getColumnListDDL($index->getColumns()),
             $this->generateBlockStorage($index)
         );
     }
@@ -356,7 +352,7 @@ CREATE %sINDEX %s ON %s (%s)%s;
      * Warning: duplicates logic from OracleAdapter::bindValue().
      * Any code modification here must be ported there.
      */
-    public function getColumnBindingPHP(Column $column, $identifier, $columnValueAccessor, $tab = "            ")
+    public function getColumnBindingPHP($column, $identifier, $columnValueAccessor, $tab = "            ")
     {
         if ($column->getPDOType() == PropelTypes::CLOB_EMU) {
             return sprintf(

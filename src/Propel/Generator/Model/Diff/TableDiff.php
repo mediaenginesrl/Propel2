@@ -238,7 +238,7 @@ class TableDiff
     /**
      * Returns the list of added columns
      *
-     * @return Column[]
+     * @return array
      */
     public function getAddedColumns()
     {
@@ -248,7 +248,7 @@ class TableDiff
     /**
      * Returns an added column by its name.
      *
-     * @param  string      $columnName
+     * @param string $columnName
      * @return Column|null
      */
     public function getAddedColumn($columnName)
@@ -599,7 +599,7 @@ class TableDiff
      *
      * Array must be [ [ Index $fromIndex, Index $toIndex ], [ ... ] ]
      *
-     * @param Index[] $modifiedIndices An aray of modified indices
+     * @param array $modifiedIndices An aray of modified indices
      */
     public function setModifiedIndices(array $modifiedIndices)
     {
@@ -727,7 +727,7 @@ class TableDiff
      *
      * Array must be [ [ ForeignKey $fromFk, ForeignKey $toFk ], [ ... ] ]
      *
-     * @param ForeignKey[] $modifiedFks
+     * @param array $modifiedFks
      */
     public function setModifiedFks(array $modifiedFks)
     {
@@ -1033,7 +1033,7 @@ class TableDiff
         if ($modifiedColumns = $this->getModifiedColumns()) {
             $ret .= "    modifiedColumns:\n";
             foreach ($modifiedColumns as $colDiff) {
-                $ret .= (string) $colDiff;
+                $ret .= $colDiff->__toString();
             }
         }
         if ($renamedColumns = $this->getRenamedColumns()) {

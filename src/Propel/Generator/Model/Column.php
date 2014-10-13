@@ -36,7 +36,6 @@ class Column extends MappingModel
     private $name;
     private $description;
     private $phpName;
-    private $phpSingularName;
     private $phpNamingMethod;
     private $isNotNull;
     private $namePrefix;
@@ -166,7 +165,6 @@ class Column extends MappingModel
 
             $this->name = $this->getAttribute('name');
             $this->phpName = $this->getAttribute('phpName');
-            $this->phpSingularName = $this->getAttribute('phpSingularName');
             $this->phpType = $this->getAttribute('phpType');
             $this->tableMapName = $this->getAttribute('tableMapName');
             $this->description = $this->getAttribute('description');
@@ -240,7 +238,7 @@ class Column extends MappingModel
                 use booleanValue()
             */
             $this->isInheritance = (null !== $this->inheritanceType && 'false' !== $this->inheritanceType);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw new EngineException(sprintf(
                 'Error setting up column %s: %s',
                 $this->getAttribute('name'),
@@ -338,7 +336,7 @@ class Column extends MappingModel
     {
         return strtolower($this->name);
     }
-
+    
     /**
      * Returns the uppercased column name.
      *
@@ -346,7 +344,7 @@ class Column extends MappingModel
      */
     public function getUppercasedName()
     {
-        return strtoupper($this->name);
+    	return strtoupper($this->name);
     }
 
     /**
@@ -376,7 +374,6 @@ class Column extends MappingModel
      */
     public function getSingularName()
     {
-        if ($this->getAttribute('phpSingularName')) return $this->getAttribute('phpSingularName');
         return rtrim($this->name, 's');
     }
 
@@ -402,7 +399,7 @@ class Column extends MappingModel
 
     /**
      * Returns the name to use in PHP sources. It will set & return
-     * a self-generated phpName from its name if its not already set.
+     * a self-generated phpName from it's name if it's not already set.
      *
      * @return string
      */
@@ -416,25 +413,9 @@ class Column extends MappingModel
     }
 
     /**
-     * Returns the singular form of the name to use in PHP sources. 
-     * It will set & return a self-generated phpName from its name 
-     * if its not already set.
-     *
-     * @return string
-     */
-    public function getPhpSingularName()
-    {
-        if (null === $this->phpSingularName) {
-            $this->setPhpSingularName();
-        }
-
-        return $this->phpSingularName;
-    }
-
-    /**
      * Sets the name to use in PHP sources.
      *
-     * It will generate a phpName from its name if no
+     * It will generate a phpName from it's name if no
      * $phpName is passed.
      *
      * @param string $phpName
@@ -449,31 +430,13 @@ class Column extends MappingModel
     }
 
     /**
-     * Sets the singular forn of the name to use in PHP 
-     * sources.
-     *
-     * It will generate a phpName from its name if no
-     * $phpSingularName is passed.
-     *
-     * @param string $phpSingularName
-     */
-    public function setPhpSingularName($phpSingularName = null)
-    {
-        if (null === $phpSingularName) {
-            $this->phpSingularName = self::generatePhpSingularName($this->getPhpName());
-        } else {
-            $this->phpSingularName = $phpSingularName;
-        }
-    }
-
-    /**
-     * Returns the camelCase version of the PHP name.
+     * Returns the studly version of the PHP name.
      *
      * The studly name is the PHP name with the first character lowercase.
      *
      * @return string
      */
-    public function getCamelCaseName()
+    public function getStudlyPhpName()
     {
         return lcfirst($this->getPhpName());
     }
@@ -674,7 +637,7 @@ class Column extends MappingModel
 
     /**
      * Returns the inheritance type.
-     *
+     * 
      * @return string
      */
     public function getInheritanceType()
@@ -684,7 +647,7 @@ class Column extends MappingModel
 
     /**
      * Returns the inheritance list.
-     *
+     * 
      * @return Inheritance[]
      */
     public function getInheritanceList()
@@ -695,7 +658,7 @@ class Column extends MappingModel
     /**
      * Returns the inheritance definitions.
      *
-     * @return Inheritance[]
+     * @return array
      */
     public function getChildren()
     {
@@ -943,7 +906,7 @@ class Column extends MappingModel
      *
      * Only if it is a foreign key or part of a foreign key.
      *
-     * @return ForeignKey[]
+     * @return array
      */
     public function getForeignKeys()
     {
@@ -967,7 +930,7 @@ class Column extends MappingModel
     /**
      * Returns the list of references to this column.
      *
-     * @return ForeignKey[]
+     * @return array
      */
     public function getReferrers()
     {
@@ -1228,16 +1191,6 @@ class Column extends MappingModel
     }
 
     /**
-     * Returns true if this table has a default value (and which is not NULL).
-     *
-     * @return bool
-     */
-    public function hasDefaultValue()
-    {
-        return null !== $this->getDefaultValue();
-    }
-
-    /**
      * Returns a string that will give this column a default value in PHP.
      *
      * @return string
@@ -1268,7 +1221,7 @@ class Column extends MappingModel
     /**
      * Sets a string that will give this column a default value.
      *
-     * @param  ColumnDefaultValue|mixed $defaultValue The column's default value
+     * @param ColumnDefaultValue|scalar $defaultValue The column's default value
      * @return Column
      */
     public function setDefaultValue($defaultValue)
@@ -1455,16 +1408,5 @@ class Column extends MappingModel
     public static function generatePhpName($name, $phpNamingMethod = PhpNameGenerator::CONV_METHOD_CLEAN, $namePrefix = null)
     {
         return NameFactory::generateName(NameFactory::PHP_GENERATOR, [ $name, $phpNamingMethod, $namePrefix ]);
-    }
-
-    /**
-     * Generates the singular form of a PHP name.
-     *
-     * @param  string $phpname
-     * @return string
-     */
-    public static function generatePhpSingularName($phpname)
-    {
-        return rtrim($phpname, 's');
     }
 }

@@ -11,13 +11,11 @@
 namespace Propel\Runtime\Adapter\Pdo;
 
 use Propel\Runtime\ActiveQuery\Criteria;
-use Propel\Runtime\Adapter\AdapterInterface;
 use Propel\Runtime\Adapter\SqlAdapterInterface;
 use Propel\Runtime\Connection\ConnectionInterface;
 use Propel\Runtime\Connection\StatementInterface;
 use Propel\Runtime\Exception\InvalidArgumentException;
 use Propel\Runtime\Map\ColumnMap;
-use Propel\Generator\Model\PropelTypes;
 
 /**
  * Oracle adapter.
@@ -65,14 +63,6 @@ class OracleAdapter extends PdoAdapter implements SqlAdapterInterface
     public function concatString($s1, $s2)
     {
         return "CONCAT($s1, $s2)";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function compareRegex($left, $right)
-    {
-        return sprintf("REGEXP_LIKE(%s, %s)", $left, $right);
     }
 
     /**
@@ -217,7 +207,7 @@ class OracleAdapter extends PdoAdapter implements SqlAdapterInterface
      */
     public function bindValue(StatementInterface $stmt, $parameter, $value, ColumnMap $cMap, $position = null)
     {
-        if (PropelTypes::CLOB_EMU === $cMap->getType()) {
+        if (PropelColumnTypes::CLOB_EMU === $cMap->getType()) {
             return $stmt->bindParam(':p'.$position, $value, $cMap->getPdoType(), strlen($value));
         }
 
@@ -230,20 +220,5 @@ class OracleAdapter extends PdoAdapter implements SqlAdapterInterface
         }
 
         return $stmt->bindValue($parameter, $value, $cMap->getPdoType());
-    }
-
-    /**
-     * We need to replace oracle: to oci: in connection's dsn.
-     *
-     * @param array $params
-     * @return array
-     */
-    protected function prepareParams($params)
-    {
-        if (isset($params['dsn'])) {
-            $params['dsn'] = str_replace('oracle:', 'oci:', $params['dsn']);
-        }
-
-        return parent::prepareParams($params);
     }
 }

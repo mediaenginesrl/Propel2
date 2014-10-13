@@ -51,6 +51,10 @@ class ModelManager extends AbstractManager
             $this->log('Datamodel: ' . $dataModel->getName());
 
             foreach ($dataModel->getDatabases() as $database) {
+                if ($this->getGeneratorConfig()->getBuildProperty('disableIdentifierQuoting')) {
+                    $database->getPlatform()->setIdentifierQuoting(false);
+                }
+
                 $this->log(' - Database: ' . $database->getName());
 
                 foreach ($database->getTables() as $table) {
@@ -89,7 +93,7 @@ class ModelManager extends AbstractManager
                                 foreach ($col->getChildren() as $child) {
                                     $overwrite = true;
                                     foreach (array('queryinheritance') as $target) {
-                                        if (!$child->getAncestor() && $child->getClassName() == $table->getPhpName()) {
+                                        if (!$child->getAncestor()) {
                                             continue;
                                         }
                                         $builder = $generatorConfig->getConfiguredBuilder($table, $target);
@@ -149,9 +153,8 @@ class ModelManager extends AbstractManager
      * This method assumes that the DataModelBuilder class has been initialized
      * with the build properties.
      *
-     * @param  AbstractOMBuilder $builder
-     * @param  boolean           $overwrite
-     * @return int
+     * @param AbstractOMBuilder $builder
+     * @param boolean           $overwrite
      */
     protected function doBuild(AbstractOMBuilder $builder, $overwrite = true)
     {

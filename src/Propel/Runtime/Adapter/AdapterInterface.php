@@ -10,7 +10,6 @@
 
 namespace Propel\Runtime\Adapter;
 
-use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Connection\ConnectionInterface;
 use Propel\Runtime\Map\ColumnMap;
 
@@ -29,7 +28,7 @@ interface AdapterInterface
      *
      * @param array $conparams connection parameters
      *
-     * @return ConnectionInterface
+     * @return Propel\Runtime\Connection\ConnectionInterface
      */
     public function getConnection($conparams);
 
@@ -41,8 +40,8 @@ interface AdapterInterface
      *
      * @see initConnection()
      *
-     * @param ConnectionInterface $con
-     * @param string              $charset The $string charset encoding.
+     * @param Propel\Runtime\Connection\ConnectionInterface $con
+     * @param string                                        $charset The $string charset encoding.
      */
     public function setCharset(ConnectionInterface $con, $charset);
 
@@ -114,17 +113,6 @@ interface AdapterInterface
     public function quoteIdentifierTable($table);
 
     /**
-     * Quotes full qualified column names and table names.
-     *
-     * book.author_id => `book`.`author_id`
-     * author_id => `author_id`
-     *
-     * @param string $text
-     * @return string
-     */
-    public function quote($text);
-
-    /**
      * Whether this adapter uses an ID generation system that requires getting ID _before_ performing INSERT.
      *
      * @return boolean
@@ -139,20 +127,10 @@ interface AdapterInterface
     public function isGetIdAfterInsert();
 
     /**
-     * Returns the "DELETE FROM <table> [AS <alias>]" part of DELETE query.
-     *
-     * @param Criteria $criteria
-     * @param string   $tableName
-     *
-     * @return string
-     */
-    public function getDeleteFromClause(Criteria $criteria, $tableName);
-
-    /**
      * Gets the generated ID (either last ID for autoincrement or next sequence ID).
      *
-     * @param ConnectionInterface $con
-     * @param string              $name
+     * @param Propel\Runtime\Connection\ConnectionInterface $con
+     * @param string                                        $name
      *
      * @return mixed
      */
@@ -161,8 +139,8 @@ interface AdapterInterface
     /**
      * Formats a temporal value before binding, given a ColumnMap object
      *
-     * @param mixed     $value The temporal value
-     * @param ColumnMap $cMap
+     * @param mixed                        $value The temporal value
+     * @param Propel\Runtime\Map\ColumnMap $cMap
      *
      * @return string The formatted temporal value
      */
@@ -190,10 +168,16 @@ interface AdapterInterface
     public function getTimeFormatter();
 
     /**
-     * @param Criteria $criteria
+     * Should Column-Names get identifiers for inserts or updates.
+     * By default false is returned -> backwards compatibility.
      *
-     * @return string
+     * it`s a workaround...!!!
+     *
+     * @todo       should be abstract
+     * @deprecated
+     *
+     * @return boolean
      */
-    public function getGroupBy(Criteria $criteria);
+    public function useQuoteIdentifier();
 
 }

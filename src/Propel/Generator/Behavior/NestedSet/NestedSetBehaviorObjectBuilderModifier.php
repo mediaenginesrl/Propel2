@@ -309,7 +309,7 @@ public function getScopeValue()
  * It provides a generic way to set the value, whatever the actual column name is.
  *
  * @param      int \$v The nested set right value
- * @return     \$this|{$objectClassName} The current object (for fluent API support)
+ * @return     {$objectClassName} The current object (for fluent API support)
  */
 public function setRightValue(\$v)
 {
@@ -328,7 +328,7 @@ public function setRightValue(\$v)
  * It provides a generic way to set the value, whatever the actual column name is.
  *
  * @param      int \$v The nested set level value
- * @return     \$this|{$objectClassName} The current object (for fluent API support)
+ * @return     {$objectClassName} The current object (for fluent API support)
  */
 public function setLevel(\$v)
 {
@@ -347,7 +347,7 @@ public function setLevel(\$v)
  * It provides a generic way to set the value, whatever the actual column name is.
  *
  * @param      int \$v The nested set scope value
- * @return     \$this|{$objectClassName} The current object (for fluent API support)
+ * @return     {$objectClassName} The current object (for fluent API support)
  */
 public function setScopeValue(\$v)
 {
@@ -364,7 +364,7 @@ public function setScopeValue(\$v)
 /**
  * Creates the supplied node as the root node.
  *
- * @return     \$this|{$objectClassName} The current object (for fluent API support)
+ * @return     {$objectClassName} The current object (for fluent API support)
  * @throws     PropelException
  */
 public function makeRoot()
@@ -497,7 +497,7 @@ public function hasParent()
  * Use moveTofirstChildOf() or moveToLastChildOf() for that purpose
  *
  * @param      $objectClassName \$parent
- * @return     \$this|{$objectClassName} The current object, for fluid interface
+ * @return     $objectClassName The current object, for fluid interface
  */
 public function setParent(\$parent = null)
 {
@@ -518,7 +518,7 @@ public function setParent(\$parent = null)
  * The result is cached so further calls to the same method don't issue any queries
  *
  * @param  ConnectionInterface \$con Connection to use.
- * @return self|boolean Propel object if exists else false
+ * @return mixed Propel object if exists else false
  */
 public function getParent(ConnectionInterface \$con = null)
 {
@@ -679,7 +679,7 @@ public function initNestedSetChildren()
     protected function addNestedSetChildAdd(&$script)
     {
         $objectClassName = $this->builder->getObjectClassName();
-        $objectName      = '$' . $this->table->getCamelCaseName();
+        $objectName      = '$' . $this->table->getStudlyPhpName();
 
         $script .= "
 /**
@@ -987,7 +987,7 @@ public function getAncestors(\$query = null, ConnectionInterface \$con = null)
  *
  * @param      $objectClassName \$child    Propel object for child node
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function addChild($objectClassName \$child)
 {
@@ -1015,7 +1015,7 @@ public function addChild($objectClassName \$child)
  *
  * @param      $objectClassName \$parent    Propel object for parent node
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function insertAsFirstChildOf(\$parent)
 {
@@ -1072,7 +1072,7 @@ public function insertAsFirstChildOf(\$parent)
  *
  * @param      $objectClassName \$sibling    Propel object for parent node
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function insertAsPrevSiblingOf(\$sibling)
 {
@@ -1115,7 +1115,7 @@ public function insertAsPrevSiblingOf(\$sibling)
  *
  * @param      $objectClassName \$sibling    Propel object for parent node
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function insertAsNextSiblingOf(\$sibling)
 {
@@ -1155,7 +1155,7 @@ public function insertAsNextSiblingOf(\$sibling)
  * @param      $objectClassName \$parent    Propel object for parent node
  * @param      ConnectionInterface \$con    Connection to use.
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function moveToFirstChildOf(\$parent, ConnectionInterface \$con = null)
 {
@@ -1187,7 +1187,7 @@ public function moveToFirstChildOf(\$parent, ConnectionInterface \$con = null)
  * @param      $objectClassName \$parent    Propel object for parent node
  * @param      ConnectionInterface \$con    Connection to use.
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function moveToLastChildOf(\$parent, ConnectionInterface \$con = null)
 {
@@ -1219,7 +1219,7 @@ public function moveToLastChildOf(\$parent, ConnectionInterface \$con = null)
  * @param      $objectClassName \$sibling    Propel object for sibling node
  * @param      ConnectionInterface \$con    Connection to use.
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function moveToPrevSiblingOf(\$sibling, ConnectionInterface \$con = null)
 {
@@ -1254,7 +1254,7 @@ public function moveToPrevSiblingOf(\$sibling, ConnectionInterface \$con = null)
  * @param      $objectClassName \$sibling    Propel object for sibling node
  * @param      ConnectionInterface \$con    Connection to use.
  *
- * @return     \$this|{$objectClassName} The current Propel object
+ * @return     $objectClassName The current Propel object
  */
 public function moveToNextSiblingOf(\$sibling, ConnectionInterface \$con = null)
 {
@@ -1293,6 +1293,7 @@ public function moveToNextSiblingOf(\$sibling, ConnectionInterface \$con = null)
  */
 protected function moveSubtreeTo(\$destLeft, \$levelDelta" . ($this->behavior->useScope() ? ", \$targetScope = null" : "") . ", PropelPDO \$con = null)
 {
+    \$preventDefault = false;
     \$left  = \$this->getLeftValue();
     \$right = \$this->getRightValue();";
 
@@ -1314,9 +1315,8 @@ protected function moveSubtreeTo(\$destLeft, \$levelDelta" . ($this->behavior->u
         \$con = Propel::getServiceContainer()->getWriteConnection($tableMapClass::DATABASE_NAME);
     }
 
-    \$con->transaction(function () use (\$con, \$treeSize, \$destLeft, \$left, \$right, \$levelDelta" . ($useScope ? ", \$scope, \$targetScope" : "") . ") {
-        \$preventDefault = false;
-
+    \$con->beginTransaction();
+    try {
         // make room next to the target for the subtree
         $queryClassName::shiftRLValues(\$treeSize, \$destLeft, null" . ($useScope ? ", \$targetScope" : "") . ", \$con);
 
@@ -1343,7 +1343,7 @@ protected function moveSubtreeTo(\$destLeft, \$levelDelta" . ($this->behavior->u
             \$preventDefault = true;
         }
 ";
-        }
+    }
 
         $script .= "
 
@@ -1371,7 +1371,12 @@ protected function moveSubtreeTo(\$destLeft, \$levelDelta" . ($this->behavior->u
 
         // update all loaded nodes
         $queryClassName::updateLoadedNodes(null, \$con);
-    });
+
+        \$con->commit();
+    } catch (PropelException \$e) {
+        \$con->rollback();
+        throw \$e;
+    }
 }
 ";
     }
@@ -1409,8 +1414,8 @@ public function deleteDescendants(ConnectionInterface \$con = null)
     \$scope = \$this->getScopeValue();";
         }
         $script .= "
-
-    return \$con->transaction(function () use (\$con, \$left, \$right" . ($useScope ? ", \$scope" : "") . ") {
+    \$con->beginTransaction();
+    try {
         // delete descendant nodes (will empty the instance pool)
         \$ret = $queryClassName::create()
             ->descendantsOf(\$this)
@@ -1422,8 +1427,13 @@ public function deleteDescendants(ConnectionInterface \$con = null)
         // fix the right value for the current node, which is now a leaf
         \$this->setRightValue(\$left + 1);
 
-        return \$ret;
-    });
+        \$con->commit();
+    } catch (Exception \$e) {
+        \$con->rollback();
+        throw \$e;
+    }
+
+    return \$ret;
 }
 ";
     }

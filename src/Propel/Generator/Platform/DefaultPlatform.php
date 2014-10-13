@@ -49,9 +49,9 @@ class DefaultPlatform implements PlatformInterface
     protected $con;
 
     /**
-     * @var bool
+     * @var boolean whether the identifier quoting is enabled
      */
-    protected $identifierQuoting = true;
+    protected $isIdentifierQuotingEnabled = false;
 
     /**
      * Default constructor.
@@ -99,28 +99,44 @@ class DefaultPlatform implements PlatformInterface
     }
 
     /**
-     * @return boolean
+     * Returns a platform specific builder class if exists.
+     *
+     * @param $type
+     *
+     * @return string|null Returns null if no platform specified builder class exists.
      */
-    public function isIdentifierQuotingEnabled()
+    public function getBuilderClass($type)
     {
-        return $this->identifierQuoting;
-    }
+        $class = get_called_class();
+        $class = substr($class, strrpos($class, '\\') + 1, -(strlen('Platform')));
+        $class = 'Propel\Generator\Builder\Om\Platform\\' . $class . ucfirst($type) . 'Builder';
 
-    /**
-     * @param boolean $enabled
-     */
-    public function setIdentifierQuoting($enabled)
-    {
-        $this->identifierQuoting = $enabled;
+        if (class_exists($class)) {
+            return $class;
+        }
     }
 
     /**
      * Sets the GeneratorConfigInterface to use in the parsing.
      *
-     * @param GeneratorConfigInterface $generatorConfig
+     * @param GeneratorConfigInterface $config
      */
-    public function setGeneratorConfig(GeneratorConfigInterface $generatorConfig)
+    public function setGeneratorConfig(GeneratorConfigInterface $config)
     {
+        // do nothing by default
+    }
+
+    /**
+     * Gets a specific propel (renamed) property from the build.
+     *
+     * @param  string $name
+     * @return mixed
+     */
+    protected function getBuildProperty($name)
+    {
+        if (null !== $this->generatorConfig) {
+            return $this->generatorConfig->getBuildProperty($name);
+        }
     }
 
     /**
@@ -438,8 +454,10 @@ DROP TABLE IF EXISTS " . $this->quoteIdentifier($table->getName()) . ";
     {
         $list = array();
         foreach ($columns as $column) {
-            $columnName = $column->getName();
-            $list[] = $this->quoteIdentifier($columnName);
+            if ($column instanceof Column) {
+                $column = $column->getName();
+            }
+            $list[] = $this->quoteIdentifier($column);
         }
 
         return implode($delimiter, $list);
@@ -454,7 +472,7 @@ DROP TABLE IF EXISTS " . $this->quoteIdentifier($table->getName()) . ";
     {
         $tableName = $table->getCommonName();
 
-        return $tableName . '_pk';
+        return $tableName . '_PK';
     }
 
     /**
@@ -545,7 +563,7 @@ CREATE %sINDEX %s ON %s (%s);
             $index->isUnique() ? 'UNIQUE ' : '',
             $this->quoteIdentifier($index->getName()),
             $this->quoteIdentifier($index->getTable()->getName()),
-            $this->getColumnListDDL($index->getColumnObjects())
+            $this->getColumnListDDL($index->getColumns())
         );
     }
 
@@ -577,7 +595,7 @@ DROP INDEX %s;
         return sprintf('%sINDEX %s (%s)',
             $index->isUnique() ? 'UNIQUE ' : '',
             $this->quoteIdentifier($index->getName()),
-            $this->getColumnListDDL($index->getColumnObjects())
+            $this->getColumnListDDL($index->getColumns())
         );
     }
 
@@ -589,7 +607,7 @@ DROP INDEX %s;
      */
     public function getUniqueDDL(Unique $unique)
     {
-        return sprintf('UNIQUE (%s)', $this->getColumnListDDL($unique->getColumnObjects()));
+        return sprintf('UNIQUE (%s)', $this->getColumnListDDL($unique->getColumns()));
     }
 
     /**
@@ -664,9 +682,9 @@ ALTER TABLE %s DROP CONSTRAINT %s;
     REFERENCES %s (%s)";
         $script = sprintf($pattern,
             $this->quoteIdentifier($fk->getName()),
-            $this->getColumnListDDL($fk->getLocalColumnObjects()),
+            $this->getColumnListDDL($fk->getLocalColumns()),
             $this->quoteIdentifier($fk->getForeignTableName()),
-            $this->getColumnListDDL($fk->getForeignColumnObjects())
+            $this->getColumnListDDL($fk->getForeignColumns())
         );
         if ($fk->hasOnUpdate()) {
             $script .= "
@@ -837,7 +855,7 @@ ALTER TABLE %s%s;
 
         // create indices, foreign keys
         foreach ($tableDiff->getModifiedIndices() as $indexModification) {
-            list($oldIndex, $toIndex) = $indexModification;
+            list(, $toIndex) = $indexModification;
             $ret .= $this->getAddIndexDDL($toIndex);
         }
         foreach ($tableDiff->getAddedIndices() as $index) {
@@ -977,7 +995,7 @@ ALTER TABLE %s DROP COLUMN %s;
      *
      * @return string
      */
-    public function getRenameColumnDDL(Column $fromColumn, Column $toColumn)
+    public function getRenameColumnDDL($fromColumn, $toColumn)
     {
         $pattern = "
 ALTER TABLE %s RENAME COLUMN %s TO %s;
@@ -1011,17 +1029,16 @@ ALTER TABLE %s MODIFY %s;
     /**
      * Builds the DDL SQL to modify a list of columns
      *
-     * @param  ColumnDiff[] $columnDiffs
      * @return string
      */
     public function getModifyColumnsDDL($columnDiffs)
     {
         $lines = array();
-        $table = null;
+        $tableName = null;
         foreach ($columnDiffs as $columnDiff) {
             $toColumn = $columnDiff->getToColumn();
-            if (null === $table) {
-                $table = $toColumn->getTable();
+            if (null === $tableName) {
+                $tableName = $toColumn->getTable()->getName();
             }
             $lines[] = $this->getColumnDDL($toColumn);
         }
@@ -1037,7 +1054,7 @@ ALTER TABLE %s MODIFY
 ";
 
         return sprintf($pattern,
-            $this->quoteIdentifier($table->getName()),
+            $this->quoteIdentifier($tableName),
             implode($sep, $lines)
         );
     }
@@ -1062,16 +1079,15 @@ ALTER TABLE %s ADD %s;
     /**
      * Builds the DDL SQL to remove a list of columns
      *
-     * @param  Column[] $columns
      * @return string
      */
     public function getAddColumnsDDL($columns)
     {
         $lines = array();
-        $table = null;
+        $tableName = null;
         foreach ($columns as $column) {
-            if (null === $table) {
-                $table = $column->getTable();
+            if (null === $tableName) {
+                $tableName = $column->getTable()->getName();
             }
             $lines[] = $this->getColumnDDL($column);
         }
@@ -1087,7 +1103,7 @@ ALTER TABLE %s ADD
 ";
 
         return sprintf($pattern,
-            $this->quoteIdentifier($table->getName()),
+            $this->quoteIdentifier($tableName),
             implode($sep, $lines)
         );
     }
@@ -1143,23 +1159,23 @@ ALTER TABLE %s ADD
     }
 
     /**
-     * Quotes identifiers used in database SQL if isIdentifierQuotingEnabled is true.
-     * Calls doQuoting() when identifierQuoting is enabled.
-     *
+     * Quotes identifiers used in database SQL.
      * @param  string $text
      * @return string Quoted identifier.
      */
-    protected function quoteIdentifier($text)
+    public function quoteIdentifier($text)
     {
-        return $this->isIdentifierQuotingEnabled() ? $this->doQuoting($text) : $text;
+        return $this->isIdentifierQuotingEnabled ? '"' . strtr($text, array('.' => '"."')) . '"' : $text;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function doQuoting($text)
+    public function setIdentifierQuoting($enabled = true)
     {
-        return '"' . strtr($text, array('.' => '"."')) . '"';
+        $this->isIdentifierQuotingEnabled = (Boolean) $enabled;
+    }
+
+    public function getIdentifierQuoting()
+    {
+        return $this->isIdentifierQuotingEnabled;
     }
 
     /**
@@ -1178,14 +1194,6 @@ ALTER TABLE %s ADD
     public function supportsInsertNullPk()
     {
         return true;
-    }
-
-    /**
-     * @return bool
-     */
-    public function supportsIndexSize()
-    {
-        return false;
     }
 
     /**
@@ -1301,7 +1309,7 @@ ALTER TABLE %s ADD
      * Warning: duplicates logic from AdapterInterface::bindValue().
      * Any code modification here must be ported there.
      */
-    public function getColumnBindingPHP(Column $column, $identifier, $columnValueAccessor, $tab = "            ")
+    public function getColumnBindingPHP($column, $identifier, $columnValueAccessor, $tab = "            ")
     {
         $script = '';
         if ($column->isTemporalType()) {
@@ -1349,29 +1357,6 @@ if (is_resource($columnValueAccessor)) {
     }
 
     /**
-     * Returns a integer indexed array of default type sizes.
-     *
-     * @return integer[] type indexed array of integers
-     */
-    public function getDefaultTypeSizes()
-    {
-        return [];
-    }
-
-    /**
-     * Returns the default size of a specific type.
-     *
-     * @param string $type
-     * @return integer
-     */
-    public function getDefaultTypeSize($type)
-    {
-        $sizes = $this->getDefaultTypeSizes();
-
-        return isset($sizes[strtolower($type)]) ? $sizes[strtolower($type)] : null;
-    }
-
-    /**
      * Normalizes a table for the current platform. Very important for the TableComparator to not
      * generate useless diffs.
      * Useful for checking needed definitions/structures. E.g. Unique Indexes for ForeignKey columns,
@@ -1383,25 +1368,10 @@ if (is_resource($columnValueAccessor)) {
     {
         if ($table->hasForeignKeys()) {
             foreach ($table->getForeignKeys() as $fk) {
-                if ($fk->getForeignTable() && !$fk->getForeignTable()->isUnique($fk->getForeignColumnObjects())) {
+                if (!$fk->getForeignTable()->isUnique($fk->getForeignColumnObjects())) {
                     $unique = new Unique();
                     $unique->setColumns($fk->getForeignColumnObjects());
                     $fk->getForeignTable()->addUnique($unique);
-                }
-            }
-        }
-
-        if (!$this->supportsIndexSize() && $table->getIndices()) {
-            // when the plafform does not support index sizes we reset it
-            foreach ($table->getIndices() as $index) {
-                $index->resetColumnsSize();
-            }
-        }
-
-        foreach ($table->getColumns() as $column) {
-            if ($column->getSize() && $defaultSize = $this->getDefaultTypeSize($column->getType())) {
-                if (intval($column->getSize()) === $defaultSize) {
-                    $column->setSize(null);
                 }
             }
         }

@@ -14,7 +14,8 @@ use Propel\Generator\Exception\BuildException;
 use Propel\Generator\Model\IdMethod;
 use Propel\Generator\Model\Database;
 use Propel\Generator\Schema\Dumper\DumperInterface;
-use Propel\Runtime\Connection\ConnectionInterface;
+use Propel\Runtime\Adapter\AdapterFactory;
+use Propel\Runtime\Connection\ConnectionFactory;
 
 /**
  * @author William Durand <william.durand1@gmail.com>
@@ -61,6 +62,11 @@ class ReverseManager extends AbstractManager
     protected $addVendorInfo;
 
     /**
+     * Connection infos
+     */
+    protected $connection;
+
+    /**
      * The schema dumper.
      *
      * @var DumperInterface
@@ -75,6 +81,11 @@ class ReverseManager extends AbstractManager
     public function __construct(DumperInterface $schemaDumper)
     {
         $this->schemaDumper = $schemaDumper;
+    }
+
+    public function setConnection($connection)
+    {
+        $this->connection = $connection;
     }
 
     /**
@@ -166,7 +177,8 @@ class ReverseManager extends AbstractManager
             file_put_contents($file, $schema);
         } catch (\Exception $e) {
             $this->log(sprintf('<error>There was an error building XML from metadata: %s</error>', $e->getMessage()));
-            throw $e;
+
+            return false;
         }
 
         return true;
@@ -198,19 +210,17 @@ class ReverseManager extends AbstractManager
 
     /**
      * @return ConnectionInterface
-     *
-     * @throws BuildException if there isn't a configured connection for reverse
      */
     protected function getConnection()
     {
-        $generatorConfig = $this->getGeneratorConfig();
-        $database = $generatorConfig->getConfigProperty('reverse.connection');
+        $buildConnection = $this->connection;
 
-        if (null === $database) {
-            throw new BuildException('No configured connection. Please add a connection to your configuration file
-            or pass a `connection` option to your command line.');
-        }
+        // Set user + password to null if they are empty strings or missing
+        $username = isset($buildConnection['user']) && $buildConnection['user'] ? $buildConnection['user'] : null;
+        $password = isset($buildConnection['password']) ? $buildConnection['password'] : null;
 
-        return $generatorConfig->getConnection($database);
+        $con = ConnectionFactory::create(array('dsn' => $buildConnection['dsn'], 'user' => $username, 'password' => $password), AdapterFactory::create($buildConnection['adapter']));
+
+        return $con;
     }
 }

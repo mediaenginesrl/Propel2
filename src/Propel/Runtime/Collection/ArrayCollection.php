@@ -10,7 +10,6 @@
 
 namespace Propel\Runtime\Collection;
 
-use Propel\Runtime\ActiveRecord\ActiveRecordInterface;
 use Propel\Runtime\Collection\Exception\ReadOnlyModelException;
 use Propel\Runtime\Exception\PropelException;
 use Propel\Runtime\Connection\ConnectionInterface;
@@ -43,7 +42,8 @@ class ArrayCollection extends Collection
         if (null === $con) {
             $con = $this->getWriteConnection();
         }
-        $con->transaction(function () use ($con) {
+        $con->beginTransaction();
+        try {
             $obj = $this->getWorkerObject();
             foreach ($this as $element) {
                 $obj->clear();
@@ -51,7 +51,10 @@ class ArrayCollection extends Collection
                 $obj->setNew($obj->isPrimaryKeyNull());
                 $obj->save($con);
             }
-        });
+            $con->commit();
+        } catch (PropelException $e) {
+            $con->rollback();
+        }
     }
 
     /**
@@ -70,14 +73,19 @@ class ArrayCollection extends Collection
         if (null === $con) {
             $con = $this->getWriteConnection();
         }
-        $con->transaction(function () use ($con) {
+        $con->beginTransaction();
+        try {
             foreach ($this as $element) {
                 $obj = $this->getWorkerObject();
                 $obj->setDeleted(false);
                 $obj->fromArray($element);
                 $obj->delete($con);
             }
-        });
+            $con->commit();
+        } catch (PropelException $e) {
+            $con->rollback();
+            throw $e;
+        }
     }
 
     /**
@@ -120,10 +128,10 @@ class ArrayCollection extends Collection
      * Get an array representation of the collection
      * This is not an alias for getData(), since it returns a copy of the data
      *
-     * @param string  $keyColumn If null, the returned array uses an incremental index.
-     *                           Otherwise, the array is indexed using the specified column
+     * @param string $keyColumn If null, the returned array uses an incremental index.
+     *                                 Otherwise, the array is indexed using the specified column
      * @param boolean $usePrefix If true, the returned array prefixes keys
-     *                           with the model class name ('Article_0', 'Article_1', etc).
+     *                                 with the model class name ('Article_0', 'Article_1', etc).
      *
      * <code>
      * $bookCollection->toArray();
@@ -199,7 +207,7 @@ class ArrayCollection extends Collection
 
     /**
      * @throws PropelException
-     * @return ActiveRecordInterface
+     * @return BaseObject
      */
     protected function getWorkerObject()
     {

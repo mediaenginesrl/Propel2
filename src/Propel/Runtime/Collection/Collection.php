@@ -10,10 +10,8 @@
 
 namespace Propel\Runtime\Collection;
 
-use Propel\Common\Pluralizer\PluralizerInterface;
-use Propel\Common\Pluralizer\StandardEnglishPluralizer;
-use Propel\Runtime\Connection\ConnectionInterface;
-use Propel\Runtime\Exception\RuntimeException;
+use ArrayIterator;
+
 use Propel\Runtime\Propel;
 use Propel\Runtime\Collection\Exception\ModelNotFoundException;
 use Propel\Runtime\Exception\BadMethodCallException;
@@ -31,14 +29,14 @@ use Propel\Runtime\Map\TableMap;
  * @method Collection fromJSON(string $data) Populate the collection from a JSON string
  * @method Collection fromCSV(string $data) Populate the collection from a CSV string
  *
- * @method string toXML(boolean $usePrefix = true, boolean $includeLazyLoadColumns = true) Export the collection to an XML string
- * @method string toYAML(boolean $usePrefix = true, boolean $includeLazyLoadColumns = true) Export the collection to a YAML string
- * @method string toJSON(boolean $usePrefix = true, boolean $includeLazyLoadColumns = true) Export the collection to a JSON string
- * @method string toCSV(boolean $usePrefix = true, boolean $includeLazyLoadColumns = true) Export the collection to a CSV string
+ * @method string toXML(boolean $usePrefix, boolean $includeLazyLoadColumns) Export the collection to an XML string
+ * @method string toYAML(boolean $usePrefix, boolean $includeLazyLoadColumns) Export the collection to a YAML string
+ * @method string toJSON(boolean $usePrefix, boolean $includeLazyLoadColumns) Export the collection to a JSON string
+ * @method string toCSV(boolean $usePrefix, boolean $includeLazyLoadColumns) Export the collection to a CSV string
  *
  * @author Francois Zaninotto
  */
-class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Serializable
+class Collection implements \ArrayAccess, \SeekableIterator, \Countable, \Serializable
 {
     /**
      * @var string
@@ -62,16 +60,6 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
      */
     protected $data = array();
 
-    /**
-     * @var CollectionIterator
-     */
-    protected $lastIterator;
-
-    /**
-     * @var PluralizerInterface|null
-     */
-    private $pluralizer;
-
     public function __construct($data = array())
     {
         $this->data = $data;
@@ -86,7 +74,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     }
 
     /**
-     * @param  mixed $offset
+     * @param mixed $offset
      * @return bool
      */
     public function offsetExists($offset)
@@ -95,7 +83,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     }
 
     /**
-     * @param  mixed $offset
+     * @param mixed $offset
      * @return mixed
      */
     public function &offsetGet($offset)
@@ -163,11 +151,54 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     }
 
     /**
-     * @return CollectionIterator
+     * Gets the position of the internal pointer
+     * This position can be later used in seek()
+     *
+     * @return integer
      */
-    public function getIterator()
+    public function getPosition()
     {
-        return $this->lastIterator = new CollectionIterator($this);
+        return key($this->data);
+    }
+
+    public function seek($position)
+    {
+        if (!isset($this->data[$position])) {
+            throw new \OutOfBoundsException("invalid seek position ($position)");
+        }
+
+        foreach ($this->data as $k => $d) {
+            if ($k === $position) {
+                return;
+            }
+        }
+    }
+
+    /* Methods required for Iterator interface */
+
+    public function rewind()
+    {
+        reset($this->data);
+    }
+
+    public function current()
+    {
+        return current($this->data);
+    }
+
+    public function key()
+    {
+        return key($this->data);
+    }
+
+    public function next()
+    {
+        next($this->data);
+    }
+
+    public function valid()
+    {
+        return null !== key($this->data);
     }
 
     public function count()
@@ -176,7 +207,8 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     }
 
     /**
-     * Get the first element in the collection
+     * Move the internal pointer to the beginning of the list
+     * And get the first element in the collection
      *
      * @return mixed
      */
@@ -186,24 +218,102 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
             return null;
         }
         reset($this->data);
-
         return current($this->data);
     }
 
     /**
-     * Get the last element in the collection
+     * Check whether the internal pointer is at the beginning of the list
+     *
+     * @return boolean
+     */
+    public function isFirst()
+    {
+        if (0 === count($this->data)) {
+            return true;
+        }
+        $copy = $this->data;
+        reset($copy);
+        return current($copy) === current($this->data);
+    }
+
+    /**
+     * Move the internal pointer backward
+     * And get the previous element in the collection
+     *
+     * @return mixed
+     */
+    public function getPrevious()
+    {
+        if (0 === ($pos = $this->getPosition()) || !count($this->data)) {
+            return null;
+        }
+
+        return prev($this->data);
+    }
+
+    /**
+     * Get the current element in the collection
+     *
+     * @return mixed
+     */
+    public function getCurrent()
+    {
+        if (!count($this->data)) {
+            return null;
+        }
+        return current($this->data);
+    }
+
+    /**
+     * Move the internal pointer forward
+     * And get the next element in the collection
+     *
+     * @return mixed
+     */
+    public function getNext()
+    {
+        $c = count($this->data);
+        if (!$c || $this->isLast()) {
+            return null;
+        }
+
+        return next($this->data);
+    }
+
+    /**
+     * Move the internal pointer to the end of the list
+     * And get the last element in the collection
      *
      * @return mixed
      */
     public function getLast()
     {
-        if (0 === $this->count()) {
+        if (0 === $count = $this->count()) {
             return null;
         }
 
         end($this->data);
-
         return current($this->data);
+    }
+
+    /**
+     * Check whether the internal pointer is at the end of the list
+     *
+     * @return boolean
+     */
+    public function isLast()
+    {
+        $count = $this->count();
+
+        if (0 === $count) {
+            // empty list... so yes, this is the last
+            return true;
+        }
+
+        $copy = $this->data;
+        end($copy);
+
+        return key($this->data) === key($copy);
     }
 
     /**
@@ -214,6 +324,26 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     public function isEmpty()
     {
         return 0 === $this->count();
+    }
+
+    /**
+     * Check if the current index is an odd integer
+     *
+     * @return boolean
+     */
+    public function isOdd()
+    {
+        return (Boolean)($this->getPosition() % 2);
+    }
+
+    /**
+     * Check if the current index is an even integer
+     *
+     * @return boolean
+     */
+    public function isEven()
+    {
+        return !$this->isOdd();
     }
 
     /**
@@ -246,7 +376,6 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
         $array = $this->getArrayCopy();
         $ret = array_pop($array);
         $this->exchangeArray($array);
-
         return $ret;
     }
 
@@ -267,19 +396,9 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     }
 
     /**
-     * Prepend one  elements to the end of the collection
-     *
-     * @param mixed $value the element to prepend
-     */
-    public function push($value)
-    {
-        $this[] = $value;
-    }
-
-    /**
      * Prepend one or more elements to the beginning of the collection
      *
-     * @param  mixed   $value the element to prepend
+     * @param  mixed $value the element to prepend
      * @return integer The number of new elements in the array
      */
     public function prepend($value)
@@ -334,7 +453,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     /**
      * Whether or not this collection contains a specified element
      *
-     * @param  mixed   $element
+     * @param  mixed $element
      * @return boolean
      */
     public function contains($element)
@@ -431,7 +550,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
     /**
      * Get the model of the elements in the collection
      *
-     * @return string Fully qualified Name of the Propel object class stored in the collection
+     * @return    string  Fully qualified Name of the Propel object class stored in the collection
      */
     public function getFullyQualifiedModel()
     {
@@ -485,10 +604,10 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
      * $coll->importFrom('JSON', '{{"Id":9012,"Title":"Don Juan","ISBN":"0140422161","Price":12.99,"PublisherId":1234,"AuthorId":5678}}');
      * </code>
      *
-     * @param mixed  $parser A AbstractParser instance, or a format name ('XML', 'YAML', 'JSON', 'CSV')
-     * @param string $data   The source data to import from
+     * @param mixed $parser A AbstractParser instance, or a format name ('XML', 'YAML', 'JSON', 'CSV')
+     * @param string $data The source data to import from
      *
-     * @return mixed The current object, for fluid interface
+     * @return BaseObject The current object, for fluid interface
      */
     public function importFrom($parser, $data)
     {
@@ -496,7 +615,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
             $parser = AbstractParser::getParser($parser);
         }
 
-        return $this->fromArray($parser->listToArray($data, $this->getPluralModelName()), TableMap::TYPE_PHPNAME);
+        return $this->fromArray($parser->listToArray($data), TableMap::TYPE_PHPNAME);
     }
 
     /**
@@ -509,15 +628,15 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
      *
      * A OnDemandCollection cannot be exported. Any attempt will result in a PropelException being thrown.
      *
-     * @param  mixed   $parser                 A AbstractParser instance, or a format name ('XML', 'YAML', 'JSON', 'CSV')
-     * @param  boolean $usePrefix              (optional) If true, the returned element keys will be prefixed with the
-     *                                         model class name ('Article_0', 'Article_1', etc). Defaults to TRUE.
-     *                                         Not supported by ArrayCollection, as ArrayFormatter has
-     *                                         already created the array used here with integers as keys.
-     * @param  boolean $includeLazyLoadColumns (optional) Whether to include lazy load(ed) columns. Defaults to TRUE.
-     *                                         Not supported by ArrayCollection, as ArrayFormatter has
-     *                                         already included lazy-load columns in the array used here.
-     * @return string  The exported data
+     * @param mixed $parser A AbstractParser instance, or a format name ('XML', 'YAML', 'JSON', 'CSV')
+     * @param boolean $usePrefix (optional) If true, the returned element keys will be prefixed with the
+     *                                            model class name ('Article_0', 'Article_1', etc). Defaults to TRUE.
+     *                                            Not supported by ArrayCollection, as ArrayFormatter has
+     *                                            already created the array used here with integers as keys.
+     * @param boolean $includeLazyLoadColumns (optional) Whether to include lazy load(ed) columns. Defaults to TRUE.
+     *                                            Not supported by ArrayCollection, as ArrayFormatter has
+     *                                            already included lazy-load columns in the array used here.
+     * @return string The exported data
      */
     public function exportTo($parser, $usePrefix = true, $includeLazyLoadColumns = true)
     {
@@ -525,9 +644,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
             $parser = AbstractParser::getParser($parser);
         }
 
-        $array = $this->toArray(null, $usePrefix, TableMap::TYPE_PHPNAME, $includeLazyLoadColumns);
-
-        return $parser->listFromArray($array, $this->getPluralModelName());
+        return $parser->listFromArray($this->toArray(null, $usePrefix, TableMap::TYPE_PHPNAME, $includeLazyLoadColumns));
     }
 
     /**
@@ -537,7 +654,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
      * Allows to define default __call() behavior if you use a custom BaseObject
      *
      * @param string $name
-     * @param mixed  $params
+     * @param mixed $params
      *
      * @return array|string
      */
@@ -550,16 +667,10 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
         }
         if (0 === strpos($name, 'to')) {
             $format = substr($name, 2);
-            $usePrefix = isset($params[0]) ? $params[0] : false;
+            $usePrefix = isset($params[0]) ? $params[0] : true;
             $includeLazyLoadColumns = isset($params[1]) ? $params[1] : true;
 
             return $this->exportTo($format, $usePrefix, $includeLazyLoadColumns);
-        }
-        if (!$this->lastIterator) {
-            $this->getIterator();
-        }
-        if (is_callable([$this->lastIterator, $name])) {
-            return call_user_func_array([$this->lastIterator, $name], $params);
         }
         throw new BadMethodCallException('Call to undefined method: ' . $name);
     }
@@ -573,7 +684,7 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
      */
     public function __toString()
     {
-        return (string) $this->exportTo(constant($this->getTableMapClass() . '::DEFAULT_STRING_FORMAT'), false);
+        return (string)$this->exportTo(constant($this->getTableMapClass() . '::DEFAULT_STRING_FORMAT'));
     }
 
     /**
@@ -586,27 +697,5 @@ class Collection implements \ArrayAccess, \IteratorAggregate, \Countable, \Seria
                 $this[$key] = clone $obj;
             }
         }
-    }
-
-    protected function getPluralizer()
-    {
-        if ($this->pluralizer === null) {
-            $this->pluralizer = $this->createPluralizer();
-        }
-
-        return $this->pluralizer;
-    }
-
-    /**
-     * Overwrite this method if you want to use a custom pluralizer
-     */
-    protected function createPluralizer()
-    {
-        return new StandardEnglishPluralizer();
-    }
-
-    protected function getPluralModelName()
-    {
-        return $this->getPluralizer()->getPluralForm($this->getModel());
     }
 }

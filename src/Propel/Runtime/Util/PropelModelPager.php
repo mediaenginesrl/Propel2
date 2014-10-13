@@ -13,7 +13,6 @@ namespace Propel\Runtime\Util;
 use Propel\Runtime\ActiveQuery\ModelCriteria;
 use Propel\Runtime\Collection\Collection;
 use Propel\Runtime\Connection\ConnectionInterface;
-use Propel\Runtime\Exception\BadMethodCallException;
 
 /**
  * Implements a pager based on a ModelCriteria
@@ -100,7 +99,7 @@ class PropelModelPager implements \IteratorAggregate, \Countable
         $qForCount = clone $this->getQuery();
         $count = $qForCount
             ->offset(0)
-            ->limit(-1)
+            ->limit(0)
             ->count($this->con)
         ;
 
@@ -108,7 +107,7 @@ class PropelModelPager implements \IteratorAggregate, \Countable
 
         $q = $this->getQuery()
             ->offset(0)
-            ->limit(-1)
+            ->limit(0)
         ;
 
         if (0 === $this->getPage() || 0 === $this->getMaxPerPage()) {
@@ -377,6 +376,28 @@ class PropelModelPager implements \IteratorAggregate, \Countable
     }
 
     /**
+     * Check whether the internal pointer is at the beginning of the list
+     * @see Collection
+     *
+     * @return boolean
+     */
+    public function isFirst()
+    {
+        return $this->getResults()->isFirst();
+    }
+
+    /**
+     * Check whether the internal pointer is at the end of the list
+     * @see Collection
+     *
+     * @return boolean
+     */
+    public function isLast()
+    {
+        return $this->getResults()->isLast();
+    }
+
+    /**
      * Check if the collection is empty
      * @see Collection
      *
@@ -387,9 +408,31 @@ class PropelModelPager implements \IteratorAggregate, \Countable
         return $this->getResults()->isEmpty();
     }
 
+    /**
+     * Check if the current index is an odd integer
+     * @see Collection
+     *
+     * @return boolean
+     */
+    public function isOdd()
+    {
+        return $this->getResults()->isOdd();
+    }
+
+    /**
+     * Check if the current index is an even integer
+     * @see Collection
+     *
+     * @return boolean
+     */
+    public function isEven()
+    {
+        return $this->getResults()->isEven();
+    }
+
     public function getIterator()
     {
-        return $this->getResults()->getIterator();
+        return $this->getResults();
     }
 
     /**
@@ -401,15 +444,6 @@ class PropelModelPager implements \IteratorAggregate, \Countable
     public function count()
     {
         return count($this->getResults());
-    }
-
-    public function __call($name, $params)
-    {
-        try {
-            return call_user_func_array([$this->getResults(), $name], $params);
-        } catch (BadMethodCallException $exception) {
-            throw new BadMethodCallException('Call to undefined method: ' . $name);
-        }
     }
 
 }

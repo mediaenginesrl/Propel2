@@ -42,7 +42,6 @@ class ConnectionFactory
         } catch (AdapterException $e) {
             throw new ConnectionException("Unable to open connection", 0, $e);
         }
-        /** @var ConnectionInterface $connection */
         $connection = new $connectionClass($adapterConnection);
 
         // load any connection options from the config file
@@ -51,7 +50,7 @@ class ConnectionFactory
             foreach ($configuration['attributes'] as $option => $value) {
                 if (is_string($value) && false !== strpos($value, '::')) {
                     if (!defined($value)) {
-                        throw new InvalidArgumentException(sprintf('Invalid class constant specified "%s" while processing connection attributes for datasource "%s"', $value, $connection->getName()));
+                        throw new InvalidArgumentException(sprintf('Invalid class constant specified "%s" while processing connection attributes for datasource "%s"'), $value, $connection->getName());
                     }
                     $value = constant($value);
                 }

@@ -15,6 +15,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Output\Output;
 use Propel\Generator\Manager\ReverseManager;
 
 /**
@@ -35,17 +36,12 @@ class DatabaseReverseCommand extends AbstractCommand
 
         $this
             ->addOption('output-dir',    null, InputOption::VALUE_REQUIRED, 'The output directory', self::DEFAULT_OUTPUT_DIRECTORY)
-            ->addOption('database-name', null, InputOption::VALUE_REQUIRED, 'The database name used in the created schema.xml. If not defined we use `connection`.')
+            ->addOption('database-name', null, InputOption::VALUE_REQUIRED, 'The database name to reverse', self::DEFAULT_DATABASE_NAME)
             ->addOption('schema-name',   null, InputOption::VALUE_REQUIRED, 'The schema name to generate', self::DEFAULT_SCHEMA_NAME)
-            ->addArgument(
-                'connection',
-                InputArgument::OPTIONAL,
-                'Connection name or dsn to use. Example: \'mysql:host=127.0.0.1;dbname=test;user=root;password=foobar\' (don\'t forget the quote for dsn)',
-                'default'
-            )
+            ->addArgument('connection',  null, InputArgument::REQUIRED,     'Connection to use')
             ->setName('database:reverse')
             ->setAliases(array('reverse'))
-            ->setDescription('Reverse-engineer a XML schema file based on given database. Uses given `connection` as name, as dsn or your `reverse.connection` configuration in propel config as connection.')
+            ->setDescription('Reverse-engineer a XML schema file based on given database')
         ;
     }
 
@@ -54,44 +50,39 @@ class DatabaseReverseCommand extends AbstractCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $configOptions = array();
+        $vendor = $input->getArgument('connection');
+        $vendor = preg_split('{:}', $vendor);
+        $vendor = ucfirst($vendor[0]);
 
-        $connection = $input->getArgument('connection');
-        if (false === strpos($connection, ':')) {
-            //treat it as connection name
-            $configOptions['propel']['reverse']['connection'] = $connection;
-            if (!$input->getOption('database-name')) {
-                $input->setOption('database-name', $connection);
-            }
-        } else {
-            //probably a dsn
-            $configOptions += $this->connectionToProperties('reverseconnection=' . $connection, 'reverse');
-            $configOptions['propel']['reverse']['parserClass'] = sprintf(
-                '\\Propel\\Generator\\Reverse\\%sSchemaParser',
-                ucfirst($configOptions['propel']['database']['connections']['reverseconnection']['adapter'])
-            );
-
-            if (!$input->getOption('database-name')) {
-                $input->setOption('database-name', self::DEFAULT_DATABASE_NAME);
-            }
-        }
-        $generatorConfig = $this->getGeneratorConfig($configOptions, $input);
+        $generatorConfig = $this->getGeneratorConfig(array(
+            'propel.platform.class'         => $input->getOption('platform'),
+            'propel.reverse.parser.class'   => sprintf('\\Propel\\Generator\\Reverse\\%sSchemaParser', $vendor),
+        ), $input);
 
         $this->createDirectory($input->getOption('output-dir'));
 
         $manager = new ReverseManager(new XmlDumper());
         $manager->setGeneratorConfig($generatorConfig);
-        $manager->setLoggerClosure(function ($message) use ($input, $output) {
+        $manager->setLoggerClosure(function($message) use ($input, $output) {
             if ($input->getOption('verbose')) {
                 $output->writeln($message);
             }
         });
         $manager->setWorkingDirectory($input->getOption('output-dir'));
+
+        list(, $dsn, $infos) = $this->parseConnection('connection=' . $input->getArgument('connection'));
+        
+        $manager->setConnection(array_merge(array('dsn' => $dsn), $infos));
+
         $manager->setDatabaseName($input->getOption('database-name'));
         $manager->setSchemaName($input->getOption('schema-name'));
 
         if (true === $manager->reverse()) {
             $output->writeln('<info>Schema reverse engineering finished.</info>');
+        } else {
+            $more = $input->getOption('verbose') ? '' : ' You can use the --verbose option to get more information.';
+
+            $output->writeln(sprintf('<error>Schema reverse engineering failed.%s</error>', $more));
         }
     }
 }

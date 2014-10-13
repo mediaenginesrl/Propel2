@@ -56,10 +56,9 @@ class PgsqlPlatform extends DefaultPlatform
         $this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARBINARY, 'BYTEA'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::BLOB, 'BYTEA'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::CLOB, 'TEXT'));
-        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'BYTEA'));
+        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'TEXT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::PHP_ARRAY, 'TEXT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::ENUM, 'INT2'));
-        $this->setSchemaDomainMapping(new Domain(PropelTypes::DECIMAL, 'NUMERIC'));
     }
 
     public function getNativeIdMethod()
@@ -70,18 +69,6 @@ class PgsqlPlatform extends DefaultPlatform
     public function getAutoIncrement()
     {
         return '';
-    }
-
-    public function getDefaultTypeSizes()
-    {
-        return array(
-            'char'      => 1,
-            'character' => 1,
-            'integer'   => 32,
-            'bigint'    => 64,
-            'smallint'  => 16,
-            'double precision' => 54
-        );
     }
 
     public function getMaxColumnNameLength()
@@ -381,7 +368,7 @@ DROP TABLE IF EXISTS %s CASCADE;
     {
         return sprintf('CONSTRAINT %s UNIQUE (%s)',
             $this->quoteIdentifier($unique->getName()),
-            $this->getColumnListDDL($unique->getColumnObjects())
+            $this->getColumnListDDL($unique->getColumns())
         );
     }
 
@@ -503,23 +490,19 @@ DROP SEQUENCE %s CASCADE;
 
             $sqlType = $toColumn->getDomain()->getSqlType();
 
-            if ($this->hasSize($sqlType) && $toColumn->isDefaultSqlType($this)) {
+            if ($this->hasSize($sqlType)) {
                 if ($this->isNumber($sqlType)) {
-                    if ('NUMERIC' === strtoupper($sqlType)) {
+                    if ('NUMBER' === strtoupper($sqlType)) {
                         $sqlType .= $toColumn->getSizeDefinition();
                     }
                 } else {
                     $sqlType .= $toColumn->getSizeDefinition();
                 }
             }
-
             if ($using = $this->getUsingCast($fromColumn, $toColumn)) {
                 $sqlType .= $using;
             }
-            $ret .= sprintf($pattern,
-                $this->quoteIdentifier($table->getName()),
-                $colName . ' TYPE ' . $sqlType
-            );
+            $ret .= sprintf($pattern, $this->quoteIdentifier($table->getName()), $colName . ' TYPE ' . $sqlType);
         }
 
         if (isset($changedProperties['defaultValueValue'])) {
@@ -559,8 +542,8 @@ DROP SEQUENCE %s CASCADE;
 
     public function getUsingCast(Column $fromColumn, Column $toColumn)
     {
-        $fromSqlType = strtoupper($fromColumn->getDomain()->getSqlType());
-        $toSqlType = strtoupper($toColumn->getDomain()->getSqlType());
+        $fromSqlType = strtoupper($fromColumn->getDomain()->getOriginSqlType() ?: $fromColumn->getDomain()->getSqlType());
+        $toSqlType = strtoupper($toColumn->getDomain()->getOriginSqlType() ?: $toColumn->getDomain()->getSqlType());
         $name = $fromColumn->getName();
 
         if ($this->isNumber($fromSqlType) && $this->isString($toSqlType)) {
@@ -666,7 +649,7 @@ DROP SEQUENCE %s CASCADE;
 %s = \$dataFetcher->fetchColumn();";
         $script = sprintf($snippet,
             $connectionVariableName,
-            $sequenceName,
+            $this->quoteIdentifier($sequenceName),
             $columnValueMutator
         );
 

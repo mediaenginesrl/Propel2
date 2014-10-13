@@ -10,9 +10,7 @@
 
 namespace Propel\Generator\Behavior\Sortable;
 
-use Propel\Generator\Builder\Om\AbstractOMBuilder;
 use Propel\Generator\Model\Column;
-use Propel\Generator\Model\Table;
 
 /**
  * Behavior to add sortable columns and abilities
@@ -33,7 +31,7 @@ class SortableBehaviorObjectBuilderModifier
     protected $table;
 
     /**
-     * @var AbstractOMBuilder
+     * @var Builder
      */
     protected $builder;
 
@@ -81,7 +79,7 @@ class SortableBehaviorObjectBuilderModifier
         return $this->behavior->getColumnForParameter($name)->getPhpName();
     }
 
-    protected function setBuilder(AbstractOMBuilder $builder)
+    protected function setBuilder($builder)
     {
         $this->builder = $builder;
         $this->objectClassName = $builder->getObjectClassName();
@@ -269,7 +267,7 @@ public function getRank()
  * Wrap the setter for rank value
  *
  * @param     int
- * @return    \$this|{$this->objectClassName}
+ * @return    {$this->objectClassName}
  */
 public function setRank(\$v)
 {
@@ -328,7 +326,7 @@ public function getScopeValue(\$returnNulls = true)
  * Wrap the setter for scope value
  *
  * @param     mixed A array or a native type
- * @return    \$this|{$this->objectClassName}
+ * @return    {$this->objectClassName}
  */
 public function setScopeValue(\$v)
 {
@@ -488,7 +486,7 @@ public function getPrevious(ConnectionInterface \$con = null)
  * @param     integer    \$rank rank value
  * @param     ConnectionInterface  \$con      optional connection
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  *
  * @throws    PropelException
  */
@@ -524,7 +522,7 @@ public function insertAtRank(\$rank, ConnectionInterface \$con = null)
  *
  * @param ConnectionInterface \$con optional connection
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  *
  * @throws    PropelException
  */
@@ -545,7 +543,7 @@ public function insertAtBottom(ConnectionInterface \$con = null)
  * Insert in the first rank
  * The modifications are not persisted until the object is saved.
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  */
 public function insertAtTop()
 {
@@ -565,7 +563,7 @@ public function insertAtTop()
  * @param     integer   \$newRank rank value
  * @param     ConnectionInterface \$con optional connection
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  *
  * @throws    PropelException
  */
@@ -586,7 +584,8 @@ public function moveToRank(\$newRank, ConnectionInterface \$con = null)
         return \$this;
     }
 
-    \$con->transaction(function () use (\$con, \$oldRank, \$newRank) {
+    \$con->beginTransaction();
+    try {
         // shift the objects between the old and the new rank
         \$delta = (\$oldRank < \$newRank) ? -1 : 1;
         {$this->queryClassName}::sortableShiftRank(\$delta, min(\$oldRank, \$newRank), max(\$oldRank, \$newRank), " . ($useScope ? "\$this->getScopeValue(), " : '') . "\$con);
@@ -594,9 +593,14 @@ public function moveToRank(\$newRank, ConnectionInterface \$con = null)
         // move the object to its new rank
         \$this->{$this->getColumnSetter()}(\$newRank);
         \$this->save(\$con);
-    });
 
-    return \$this;
+        \$con->commit();
+
+        return \$this;
+    } catch (Exception \$e) {
+        \$con->rollback();
+        throw \$e;
+    }
 }
 ";
     }
@@ -610,7 +614,7 @@ public function moveToRank(\$newRank, ConnectionInterface \$con = null)
  * @param     {$this->objectClassName} \$object
  * @param     ConnectionInterface \$con optional connection
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  *
  * @throws Exception if the database cannot execute the two updates
  */
@@ -619,7 +623,8 @@ public function swapWith(\$object, ConnectionInterface \$con = null)
     if (null === \$con) {
         \$con = Propel::getServiceContainer()->getWriteConnection({$this->tableMapClassName}::DATABASE_NAME);
     }
-    \$con->transaction(function () use (\$con, \$object) {";
+    \$con->beginTransaction();
+    try {";
         if ($this->behavior->useScope()) {
             $script .= "
         \$oldScope = \$this->getScopeValue();
@@ -639,9 +644,13 @@ public function swapWith(\$object, ConnectionInterface \$con = null)
 
         \$this->save(\$con);
         \$object->save(\$con);
-    });
+        \$con->commit();
 
-    return \$this;
+        return \$this;
+    } catch (Exception \$e) {
+        \$con->rollback();
+        throw \$e;
+    }
 }
 ";
     }
@@ -654,7 +663,7 @@ public function swapWith(\$object, ConnectionInterface \$con = null)
  *
  * @param     ConnectionInterface \$con optional connection
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  */
 public function moveUp(ConnectionInterface \$con = null)
 {
@@ -664,12 +673,17 @@ public function moveUp(ConnectionInterface \$con = null)
     if (null === \$con) {
         \$con = Propel::getServiceContainer()->getWriteConnection({$this->tableMapClassName}::DATABASE_NAME);
     }
-    \$con->transaction(function () use (\$con) {
+    \$con->beginTransaction();
+    try {
         \$prev = \$this->getPrevious(\$con);
         \$this->swapWith(\$prev, \$con);
-    });
+        \$con->commit();
 
-    return \$this;
+        return \$this;
+    } catch (Exception \$e) {
+        \$con->rollback();
+        throw \$e;
+    }
 }
 ";
     }
@@ -682,7 +696,7 @@ public function moveUp(ConnectionInterface \$con = null)
  *
  * @param     ConnectionInterface \$con optional connection
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  */
 public function moveDown(ConnectionInterface \$con = null)
 {
@@ -692,12 +706,17 @@ public function moveDown(ConnectionInterface \$con = null)
     if (null === \$con) {
         \$con = Propel::getServiceContainer()->getWriteConnection({$this->tableMapClassName}::DATABASE_NAME);
     }
-    \$con->transaction(function () use (\$con) {
+    \$con->beginTransaction();
+    try {
         \$next = \$this->getNext(\$con);
         \$this->swapWith(\$next, \$con);
-    });
+        \$con->commit();
 
-    return \$this;
+        return \$this;
+    } catch (Exception \$e) {
+        \$con->rollback();
+        throw \$e;
+    }
 }
 ";
     }
@@ -710,7 +729,7 @@ public function moveDown(ConnectionInterface \$con = null)
  *
  * @param     ConnectionInterface \$con optional connection
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  */
 public function moveToTop(ConnectionInterface \$con = null)
 {
@@ -742,12 +761,17 @@ public function moveToBottom(ConnectionInterface \$con = null)
     if (null === \$con) {
         \$con = Propel::getServiceContainer()->getWriteConnection({$this->tableMapClassName}::DATABASE_NAME);
     }
-
-    return \$con->transaction(function () use (\$con) {
+    \$con->beginTransaction();
+    try {
         \$bottom = {$this->queryClassName}::create()->getMaxRankArray(" . ($useScope ? "\$this->getScopeValue(), " : '') . "\$con);
+        \$res = \$this->moveToRank(\$bottom, \$con);
+        \$con->commit();
 
-        return \$this->moveToRank(\$bottom, \$con);
-    });
+        return \$res;
+    } catch (Exception \$e) {
+        \$con->rollback();
+        throw \$e;
+    }
 }
 ";
     }
@@ -760,7 +784,7 @@ public function moveToBottom(ConnectionInterface \$con = null)
  * Removes the current object from the list".($useScope ? ' (moves it to the null scope)' : '').".
  * The modifications are not persisted until the object is saved.
  *
- * @return    \$this|{$this->objectClassName} the current object
+ * @return    {$this->objectClassName} the current object
  */
 public function removeFromList()
 {";

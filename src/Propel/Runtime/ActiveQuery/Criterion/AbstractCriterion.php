@@ -63,14 +63,14 @@ abstract class AbstractCriterion
 
     /**
      * Other connected criterions
-     * @var AbstractCriterion[]
+     * @var [AbstractCriterion]
      */
     protected $clauses = array();
 
     /**
      * Operators for connected criterions
      * Only self::UND and self::ODER are accepted
-     * @var string[]
+     * @var [String]
      */
     protected $conjunctions = array();
 
@@ -211,7 +211,7 @@ abstract class AbstractCriterion
 
     /**
      * Get the list of clauses in this Criterion.
-     * @return self[]
+     * @return array
      */
     private function getClauses()
     {
@@ -229,9 +229,6 @@ abstract class AbstractCriterion
 
     /**
      * Append an AND Criterion onto this Criterion's list.
-     *
-     * @param  AbstractCriterion       $criterion
-     * @return $this|AbstractCriterion
      */
     public function addAnd(AbstractCriterion $criterion)
     {
@@ -243,9 +240,7 @@ abstract class AbstractCriterion
 
     /**
      * Append an OR Criterion onto this Criterion's list.
-     *
-     * @param  AbstractCriterion       $criterion
-     * @return $this|AbstractCriterion
+     * @return Criterion
      */
     public function addOr(AbstractCriterion $criterion)
     {
@@ -263,7 +258,7 @@ abstract class AbstractCriterion
      * @param  array           $params A list to which Prepared Statement parameters will be appended
      * @return void
      * @throws PropelException - if the expression builder cannot figure out how to turn a specified
-     *                                expression into proper SQL.
+     *                           expression into proper SQL.
      */
     public function appendPsTo(&$sb, array &$params)
     {
@@ -313,7 +308,6 @@ abstract class AbstractCriterion
             return false;
         }
 
-        /** @var AbstractCriterion $crit */
         $crit = $obj;
 
         $isEquiv = (((null === $this->table && null === $crit->getTable())
@@ -368,7 +362,7 @@ abstract class AbstractCriterion
     /**
      * get an array of all criterion attached to this
      * recursing through all sub criterion
-     * @return AbstractCriterion[]
+     * @return Criterion[]
      */
     public function getAttachedCriterion()
     {

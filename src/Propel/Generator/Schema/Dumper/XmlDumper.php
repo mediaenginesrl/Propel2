@@ -34,7 +34,7 @@ class XmlDumper implements DumperInterface
     /**
      * The DOMDocument object.
      *
-     * @var \DOMDocument
+     * @var DOMDocument
      */
     private $document;
 
@@ -56,8 +56,8 @@ class XmlDumper implements DumperInterface
     /**
      * Dumps a single Database model into an XML formatted version.
      *
-     * @param  Database $database The database model
-     * @return string   The dumped XML formatted output
+     * @param Database $database The database model
+     * @return string The dumped XML formatted output
      */
     public function dump(Database $database)
     {
@@ -69,8 +69,8 @@ class XmlDumper implements DumperInterface
     /**
      * Dumps a single Schema model into an XML formatted version.
      *
-     * @param  Schema  $schema                The schema object
-     * @param  boolean $doFinalInitialization Whether or not to validate the schema
+     * @param Schema  $schema                The schema object
+     * @param boolean $doFinalInitialization Whether or not to validate the schema
      * @return string
      */
     public function dumpSchema(Schema $schema, $doFinalInitialization = true)
@@ -314,14 +314,10 @@ class XmlDumper implements DumperInterface
         $behaviorNode = $parentNode->appendChild($this->document->createElement('behavior'));
         $behaviorNode->setAttribute('name', $behavior->getName());
 
-        if ($behavior->allowMultiple()) {
-            $behaviorNode->setAttribute('id', $behavior->getId());
-        }
-
         foreach ($behavior->getParameters() as $name => $value) {
             $parameterNode = $behaviorNode->appendChild($this->document->createElement('parameter'));
             $parameterNode->setAttribute('name', $name);
-            $parameterNode->setAttribute('value', $value);
+            $parameterNode->setAttribute('name', $value);
         }
     }
 
@@ -491,8 +487,8 @@ class XmlDumper implements DumperInterface
     /**
      * Appends the generated <unique> XML node to its parent node.
      *
-     * @param Unique   $unique     The Unique model instance
-     * @param \DOMNode $parentNode The parent DOMNode object
+     * @param Unique       $unique     The Unique model instance
+     * @param \DOMNode     $parentNode The parent DOMNode object
      */
     private function appendUniqueIndexNode(Unique $index, \DOMNode $parentNode)
     {
@@ -502,9 +498,9 @@ class XmlDumper implements DumperInterface
     /**
      * Appends a generice <index> or <unique> XML node to its parent node.
      *
-     * @param string   $nodeType   The node type (index or unique)
-     * @param Index    $index      The Index model instance
-     * @param \DOMNode $parentNode The parent DOMNode object
+     * @param string       $nodeType   The node type (index or unique)
+     * @param Index        $index      The Index model instance
+     * @param \DOMNode     $parentNode The parent DOMNode object
      */
     private function appendGenericIndexNode($nodeType, Index $index, \DOMNode $parentNode)
     {

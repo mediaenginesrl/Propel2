@@ -31,8 +31,14 @@ use Propel\Generator\Model\Diff\DatabaseDiff;
  */
 class MysqlPlatform extends DefaultPlatform
 {
-    protected $tableEngineKeyword = 'ENGINE';  // overwritten in propel config
-    protected $defaultTableEngine = 'InnoDB';  // overwritten in propel config
+
+    /**
+     * @var boolean whether the identifier quoting is enabled
+     */
+    protected $isIdentifierQuotingEnabled = true;
+
+    protected $tableEngineKeyword = 'ENGINE';  // overwritten in build.properties
+    protected $defaultTableEngine = 'MyISAM';  // overwritten in build.properties
 
     /**
      * Initializes db specific domain mapping.
@@ -48,7 +54,7 @@ class MysqlPlatform extends DefaultPlatform
         $this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARBINARY, 'LONGBLOB'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::CLOB, 'LONGTEXT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::TIMESTAMP, 'DATETIME'));
-        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'MEDIUMBLOB'));
+        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'TEXT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::PHP_ARRAY, 'TEXT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::ENUM, 'TINYINT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::REAL, 'DOUBLE'));
@@ -56,11 +62,10 @@ class MysqlPlatform extends DefaultPlatform
 
     public function setGeneratorConfig(GeneratorConfigInterface $generatorConfig)
     {
-        parent::setGeneratorConfig($generatorConfig);
-        if ($defaultTableEngine = $generatorConfig->get()['database']['adapters']['mysql']['tableType']) {
+        if ($defaultTableEngine = $generatorConfig->getBuildProperty('mysqlTableType')) {
             $this->defaultTableEngine = $defaultTableEngine;
         }
-        if ($tableEngineKeyword = $generatorConfig->get()['database']['adapters']['mysql']['tableEngineKeyword']) {
+        if ($tableEngineKeyword = $generatorConfig->getBuildProperty('mysqlTableEngineKeyword')) {
             $this->tableEngineKeyword = $tableEngineKeyword;
         }
     }
@@ -118,11 +123,6 @@ class MysqlPlatform extends DefaultPlatform
     public function supportsNativeDeleteTrigger()
     {
         return strtolower($this->getDefaultTableEngine()) == 'innodb';
-    }
-
-    public function supportsIndexSize()
-    {
-        return true;
     }
 
     public function supportsForeignKeys(Table $table)
@@ -295,13 +295,6 @@ CREATE TABLE %s
             'Union'           => 'UNION',
         );
 
-        $noQuotedValue = array_flip([
-            'InsertMethod',
-            'Pack_Keys',
-            'PackKeys',
-            'RowFormat',
-        ]);
-
         foreach ($supportedOptions as $name => $sqlName) {
             $parameterValue = null;
 
@@ -313,10 +306,8 @@ CREATE TABLE %s
 
             // if we have a param value, then parse it out
             if (!is_null($parameterValue)) {
-                // if the value is numeric or is parameter is in $noQuotedValue, then there is no need for quotes
-                if (!is_numeric($parameterValue) && !isset($noQuotedValue[$name])) {
-                    $parameterValue = $this->quote($parameterValue);
-                }
+                // if the value is numeric, then there is no need for quotes
+                $parameterValue = is_numeric($parameterValue) ? $parameterValue : $this->quote($parameterValue);
 
                 $tableOptions [] = sprintf('%s=%s', $sqlName, $parameterValue);
             }
@@ -458,7 +449,7 @@ CREATE %sINDEX %s ON %s (%s);
             $this->getIndexType($index),
             $this->quoteIdentifier($index->getName()),
             $this->quoteIdentifier($index->getTable()->getName()),
-            $this->getIndexColumnListDDL($index)
+            $this->getColumnListDDL($index->getColumns())
         );
     }
 
@@ -637,7 +628,7 @@ ALTER TABLE %s DROP %s;
      * Builds the DDL SQL to rename a column
      * @return string
      */
-    public function getRenameColumnDDL(Column $fromColumn, Column $toColumn)
+    public function getRenameColumnDDL($fromColumn, $toColumn)
     {
         return $this->getChangeColumnDDL($fromColumn, $toColumn);
     }
@@ -656,7 +647,7 @@ ALTER TABLE %s DROP %s;
      * Builds the DDL SQL to change a column
      * @return string
      */
-    public function getChangeColumnDDL(Column $fromColumn, Column $toColumn)
+    public function getChangeColumnDDL($fromColumn, $toColumn)
     {
         $pattern = "
 ALTER TABLE %s CHANGE %s %s;
@@ -702,18 +693,6 @@ ALTER TABLE %s CHANGE %s %s;
         ));
     }
 
-    public function getDefaultTypeSizes()
-    {
-        return array(
-            'char'     => 1,
-            'tinyint'  => 4,
-            'smallint' => 6,
-            'int'      => 11,
-            'bigint'   => 20,
-            'decimal'  => 10,
-        );
-    }
-
     /**
      * Escape the string for RDBMS.
      * @param  string $text
@@ -725,8 +704,6 @@ ALTER TABLE %s CHANGE %s %s;
     }
 
     /**
-     * {@inheritdoc}
-     *
      * MySQL documentation says that identifiers cannot contain '.'. Thus it
      * should be safe to split the string by '.' and quote each part individually
      * to allow for a <schema>.<table> or <table>.<column> syntax.
@@ -734,9 +711,9 @@ ALTER TABLE %s CHANGE %s %s;
      * @param  string $text the identifier
      * @return string the quoted identifier
      */
-    public function doQuoting($text)
+    public function quoteIdentifier($text)
     {
-        return '`' . strtr($text, array('.' => '`.`')) . '`';
+        return $this->isIdentifierQuotingEnabled ? '`' . strtr($text, array('.' => '`.`')) . '`' : $text;
     }
 
     public function getTimestampFormatter()
@@ -744,7 +721,7 @@ ALTER TABLE %s CHANGE %s %s;
         return 'Y-m-d H:i:s';
     }
 
-    public function getColumnBindingPHP(Column $column, $identifier, $columnValueAccessor, $tab = "            ")
+    public function getColumnBindingPHP($column, $identifier, $columnValueAccessor, $tab = "            ")
     {
         // FIXME - This is a temporary hack to get around apparent bugs w/ PDO+MYSQL
         // See http://pecl.php.net/bugs/bug.php?id=9919

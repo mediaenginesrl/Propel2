@@ -10,6 +10,8 @@
 
 namespace Propel\Generator\Model;
 
+use Propel\Generator\Exception\EngineException;
+
 /**
  * Information about indices of a table.
  *
@@ -26,7 +28,7 @@ class Index extends MappingModel
 
     /**
      * The Table instance.
-     *
+     * 
      * @var Table
      */
     protected $table;
@@ -34,22 +36,12 @@ class Index extends MappingModel
     /**
      * @var string[]
      */
-    protected $columns;
-
-    /**
-     * @var Column[]
-     */
-    protected $columnObjects = [];
+    private $columns;
 
     /**
      * @var string[]
      */
-    protected $columnsSize;
-
-    /**
-     * @var bool
-     */
-    protected $autoNaming = false;
+    private $columnsSize;
 
     /**
      * Creates a new Index instance.
@@ -85,7 +77,6 @@ class Index extends MappingModel
      */
     public function setName($name)
     {
-        $this->autoNaming = !$name; //if no name we activate autoNaming
         $this->name = $name;
     }
 
@@ -96,37 +87,20 @@ class Index extends MappingModel
      */
     public function getName()
     {
-        $this->doNaming();
+        if (null === $this->name) {
+            try {
+                // generate an index name if we don't have a supplied one
+                $this->createName();
+            } catch (EngineException $e) {
+                // still no name
+            }
+        }
 
-        if ($this->table && $database = $this->table->getDatabase()) {
+        if ($database = $this->table->getDatabase()) {
             return substr($this->name, 0, $database->getMaxColumnNameLength());
         }
 
         return $this->name;
-    }
-
-    protected function doNaming()
-    {
-        if (!$this->name || $this->autoNaming) {
-            $newName = sprintf('%s_', $this instanceof Unique ? 'u' : 'i');
-
-            if ($this->columns) {
-                $hash = [];
-                $hash[] = implode(',', (array)$this->columns);
-                $hash[] = implode(',', (array)$this->columnsSize);
-
-                $newName .= substr(md5(strtolower(implode(':', $hash))), 0, 6);
-            } else {
-                $newName .= 'no_columns';
-            }
-
-            if ($this->table) {
-                $newName = $this->table->getCommonName() . '_' . $newName;
-            }
-
-            $this->name = $newName;
-            $this->autoNaming = true;
-        }
     }
 
     public function getFQName()
@@ -141,6 +115,17 @@ class Index extends MappingModel
         }
 
         return $this->getName();
+    }
+
+    protected function createName()
+    {
+        $inputs[] = $this->table->getDatabase();
+        $inputs[] = $this->table->getCommonName();
+        $inputs[] = 'I';
+        $inputs[] = count($this->table->getIndices()) + 1;
+
+        // @TODO replace the factory by a real object
+        $this->name = NameFactory::generateName(NameFactory::CONSTRAINT_GENERATOR, $inputs);
     }
 
     /**
@@ -176,7 +161,7 @@ class Index extends MappingModel
     /**
      * Adds a new column to the index.
      *
-     * @param Column|array $data Column or attributes from XML.
+     * @param Column|string $data Column or attributes from XML.
      */
     public function addColumn($data)
     {
@@ -186,14 +171,10 @@ class Index extends MappingModel
             if ($column->getSize()) {
                 $this->columnsSize[$column->getName()] = $column->getSize();
             }
-            $this->columnObjects[] = $column;
         } else {
             $this->columns[] = $name = $data['name'];
             if (isset($data['size']) && $data['size'] > 0) {
                 $this->columnsSize[$name] = $data['size'];
-            }
-            if ($this->getTable()) {
-                $this->columnObjects[] = $this->getTable()->getColumn($name);
             }
         }
     }
@@ -210,7 +191,7 @@ class Index extends MappingModel
     /**
      * Sets an array of columns to use for the index.
      *
-     * @param array $columns array of array definitions $columns[]['name'] = 'columnName'
+     * @param array $columns
      */
     public function setColumns(array $columns)
     {
@@ -236,19 +217,10 @@ class Index extends MappingModel
      * Returns the size for the specified column.
      *
      * @param  string  $name
-     * @param  boolean $caseInsensitive
      * @return integer
      */
-    public function getColumnSize($name, $caseInsensitive = false)
+    public function getColumnSize($name)
     {
-        if ($caseInsensitive) {
-            foreach ($this->columnsSize as $forName => $size) {
-                if (0 === strcasecmp($forName, $name)) {
-                    return $size;
-                }
-            }
-            return null;
-        }
         return isset($this->columnsSize[$name]) ? $this->columnsSize[$name] : null;
     }
 
@@ -277,17 +249,18 @@ class Index extends MappingModel
             return false;
         }
 
+        $test = false;
         if ($caseInsensitive) {
-            $test = 0 === strcasecmp($this->columns[$pos], $name);
+            $test = strcasecmp($this->columns[$pos], $name);
         } else {
-            $test = $this->columns[$pos] == $name;
+            $test = strcasecmp($this->columns[$pos], $name);
         }
 
-        if (!$test) {
+        if (0 !== $test) {
             return false;
         }
 
-        if ($this->getColumnSize($name, $caseInsensitive) != $size) {
+        if (null !== $size && $this->columnsSize[$name] != $size) {
             return false;
         }
 
@@ -318,22 +291,6 @@ class Index extends MappingModel
 
     protected function setupObject()
     {
-        $this->setName($this->getAttribute('name'));
-    }
-
-    /**
-     * @return Column[]
-     */
-    public function getColumnObjects()
-    {
-        return $this->columnObjects;
-    }
-
-    /**
-     * @param Column[] $columnObjects
-     */
-    public function setColumnObjects($columnObjects)
-    {
-        $this->columnObjects = $columnObjects;
+        $this->name = $this->getAttribute('name');
     }
 }

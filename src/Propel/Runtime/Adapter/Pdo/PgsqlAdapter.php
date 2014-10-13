@@ -14,7 +14,6 @@ use Propel\Runtime\Adapter\AdapterInterface;
 use Propel\Runtime\Adapter\SqlAdapterInterface;
 use Propel\Runtime\Connection\ConnectionInterface;
 use Propel\Runtime\Exception\InvalidArgumentException;
-use Propel\Runtime\Exception\PropelException;
 use Propel\Runtime\Propel;
 use Propel\Runtime\ActiveQuery\Criteria;
 
@@ -37,14 +36,6 @@ class PgsqlAdapter extends PdoAdapter implements SqlAdapterInterface
     public function concatString($s1, $s2)
     {
         return "($s1 || $s2)";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function compareRegex($left, $right)
-    {
-        return sprintf("%s ~* %s", $left, $right);
     }
 
     /**
@@ -128,7 +119,7 @@ class PgsqlAdapter extends PdoAdapter implements SqlAdapterInterface
      */
     public function applyLimit(&$sql, $offset, $limit)
     {
-        if ($limit >= 0) {
+        if ($limit > 0) {
             $sql .= sprintf(' LIMIT %u', $limit);
         }
         if ($offset > 0) {
@@ -137,11 +128,10 @@ class PgsqlAdapter extends PdoAdapter implements SqlAdapterInterface
     }
 
     /**
+     * @param string   $sql
      * @param Criteria $criteria
-     *
-     * @return string
      */
-    public function getGroupBy(Criteria $criteria)
+    public function applyGroupBy(&$sql, Criteria $criteria)
     {
         $groupBy = $criteria->getGroupByColumns();
 
@@ -164,11 +154,9 @@ class PgsqlAdapter extends PdoAdapter implements SqlAdapterInterface
             }
 
             if ($groupBy) {
-                return ' GROUP BY ' . implode(',', $groupBy);
+                $sql .= ' GROUP BY ' . implode(',', $groupBy);
             }
         }
-
-        return '';
     }
 
     /**
@@ -185,8 +173,8 @@ class PgsqlAdapter extends PdoAdapter implements SqlAdapterInterface
     /**
      * @see PdoAdapter::getDeleteFromClause()
      *
-     * @param Criteria $criteria
-     * @param string   $tableName
+     * @param Propel\Runtime\ActiveQuery\Criteria $criteria
+     * @param string                              $tableName
      *
      * @return string
      */
@@ -197,10 +185,14 @@ class PgsqlAdapter extends PdoAdapter implements SqlAdapterInterface
             $sql .= '/* ' . $queryComment . ' */ ';
         }
         if ($realTableName = $criteria->getTableForAlias($tableName)) {
-            $realTableName = $criteria->quoteIdentifierTable($realTableName);
+            if ($this->useQuoteIdentifier()) {
+                $realTableName = $this->quoteIdentifierTable($realTableName);
+            }
             $sql .= 'FROM ' . $realTableName . ' AS ' . $tableName;
         } else {
-            $tableName = $criteria->quoteIdentifierTable($tableName);
+            if ($this->useQuoteIdentifier()) {
+                $tableName = $this->quoteIdentifierTable($tableName);
+            }
             $sql .= 'FROM ' . $tableName;
         }
 

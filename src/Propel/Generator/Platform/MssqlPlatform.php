@@ -46,7 +46,7 @@ class MssqlPlatform extends DefaultPlatform
         $this->setSchemaDomainMapping(new Domain(PropelTypes::VARBINARY, "VARBINARY(MAX)"));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARBINARY, "VARBINARY(MAX)"));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::BLOB, "VARBINARY(MAX)"));
-        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, "VARBINARY(MAX)"));
+        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, "VARCHAR(MAX)"));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::PHP_ARRAY, "VARCHAR(MAX)"));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::ENUM, "TINYINT"));
     }
@@ -151,9 +151,9 @@ END
         $pattern = 'CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s)';
         $script = sprintf($pattern,
             $this->quoteIdentifier($fk->getName()),
-            $this->getColumnListDDL($fk->getLocalColumnObjects()),
+            $this->getColumnListDDL($fk->getLocalColumns()),
             $this->quoteIdentifier($fk->getForeignTableName()),
-            $this->getColumnListDDL($fk->getForeignColumnObjects())
+            $this->getColumnListDDL($fk->getForeignColumns())
         );
         if ($fk->hasOnUpdate() && $fk->getOnUpdate() != ForeignKey::SETNULL) {
             $script .= ' ON UPDATE ' . $fk->getOnUpdate();
@@ -178,12 +178,9 @@ END
         return !('INT' === $sqlType || 'TEXT' === $sqlType);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function doQuoting($text)
+    public function quoteIdentifier($text)
     {
-        return '[' . strtr($text, array('.' => '].[')) . ']';
+        return $this->isIdentifierQuotingEnabled ? '[' . strtr($text, array('.' => '].[')) . ']' : $text;
     }
 
     public function getTimestampFormatter()

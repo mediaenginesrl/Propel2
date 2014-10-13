@@ -6,7 +6,7 @@
     /**
      * The default database name for this class
      */
-    const DATABASE_NAME = '<?php echo $dbName ?>';
+    const DATABASE_NAME = <?php echo 'DBNAME'//$dbName ?>;
 
     /**
      * The table name for this class
@@ -40,9 +40,9 @@
 <?php foreach ($columns as $col) : ?>
 
     /**
-     * the column name for the <?php echo $col->getName() ?> field
+     * the column name for the <?php echo strtoupper($col->getName()) ?> field
      */
-    const <?php echo $col->getConstantName() ?> = '<?php echo $tableName ?>.<?php echo $col->getName() ?>';
+    const <?php echo $col->getConstantName() ?> = '<?php echo $tableName ?>.<?php echo strtoupper($col->getName()) ?>';
 <?php endforeach; ?>
 
     /**

@@ -13,6 +13,7 @@ namespace Propel\Generator\Reverse;
 use Propel\Generator\Config\GeneratorConfigInterface;
 use Propel\Generator\Model\VendorInfo;
 use Propel\Runtime\Connection\ConnectionInterface;
+use Propel\Runtime\Connection\SqlConnectionInterface;
 
 /**
  * Base class for reverse engineering a database schema.
@@ -24,7 +25,7 @@ abstract class AbstractSchemaParser implements SchemaParserInterface
     /**
      * The database connection.
      *
-     * @var ConnectionInterface
+     * @var SqlConnectionInterface
      */
     protected $dbh;
 
@@ -38,7 +39,7 @@ abstract class AbstractSchemaParser implements SchemaParserInterface
     /**
      * GeneratorConfig object holding build properties.
      *
-     * @var GeneratorConfigInterface
+     * @var GeneratorConfig
      */
     private $generatorConfig;
 
@@ -155,11 +156,26 @@ abstract class AbstractSchemaParser implements SchemaParserInterface
     /**
      * Gets the GeneratorConfig option.
      *
-     * @return GeneratorConfigInterface
+     * @return GeneratorConfig
      */
     public function getGeneratorConfig()
     {
         return $this->generatorConfig;
+    }
+
+    /**
+     * Gets a specific propel (renamed) property from the build.
+     *
+     * @param  string $name
+     * @return mixed
+     */
+    public function getBuildProperty($name)
+    {
+        if (null !== $this->generatorConfig) {
+            return $this->generatorConfig->getBuildProperty($name);
+        }
+
+        return null;
     }
 
     /**

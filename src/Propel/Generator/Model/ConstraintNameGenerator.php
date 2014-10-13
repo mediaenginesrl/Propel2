@@ -10,8 +10,6 @@
 
 namespace Propel\Generator\Model;
 
-use Propel\Generator\Exception\EngineException;
-
 /**
  * A <code>NameGeneratorInterface</code> implementation for table-specific
  * constraints.  Conforms to the maximum column name length for the
@@ -36,8 +34,7 @@ class ConstraintNameGenerator implements NameGeneratorInterface
      * of this constraint.
      *
      * @see NameGenerator
-     * @param  array           $inputs An array of input parameters
-     * @return string
+     * @param array $inputs An array of input parameters
      * @throws EngineException
      */
     public function generateName($inputs)

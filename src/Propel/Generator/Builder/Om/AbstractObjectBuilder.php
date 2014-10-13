@@ -50,9 +50,6 @@ abstract class AbstractObjectBuilder extends AbstractOMBuilder
                 }
             } elseif ($col->isEnumType()) {
                 $this->addEnumAccessor($script, $col);
-            } elseif ($col->isBooleanType()) {
-                $this->addDefaultAccessor($script, $col);
-                $this->addBooleanAccessor($script, $col);
             } else {
                 $this->addDefaultAccessor($script, $col);
             }
@@ -72,9 +69,7 @@ abstract class AbstractObjectBuilder extends AbstractOMBuilder
     protected function addColumnMutatorMethods(&$script)
     {
         foreach ($this->getTable()->getColumns() as $col) {
-            if (PropelTypes::OBJECT === $col->getType()) {
-                $this->addObjectMutator($script, $col);
-            } elseif ($col->isLobType()) {
+            if ($col->isLobType()) {
                 $this->addLobMutator($script, $col);
             } elseif (
                 PropelTypes::DATE === $col->getType()
@@ -82,6 +77,8 @@ abstract class AbstractObjectBuilder extends AbstractOMBuilder
                 || PropelTypes::TIMESTAMP === $col->getType()
             ) {
                 $this->addTemporalMutator($script, $col);
+            } elseif (PropelTypes::OBJECT === $col->getType()) {
+                $this->addObjectMutator($script, $col);
             } elseif (PropelTypes::PHP_ARRAY === $col->getType()) {
                 $this->addArrayMutator($script, $col);
                 if ($col->isNamePlural()) {
@@ -128,7 +125,7 @@ abstract class AbstractObjectBuilder extends AbstractOMBuilder
     {
         $table = $this->getTable();
 
-        return (!$table->isAlias() && $this->getBuildProperty('generator.objectModel.addGenericMutators') && !$table->isReadOnly());
+        return (!$table->isAlias() && $this->getBuildProperty('addGenericMutators') && !$table->isReadOnly());
     }
 
     /**
@@ -140,7 +137,7 @@ abstract class AbstractObjectBuilder extends AbstractOMBuilder
     {
         $table = $this->getTable();
 
-        return (!$table->isAlias() && $this->getBuildProperty('generator.objectModel.addGenericAccessors'));
+        return (!$table->isAlias() && $this->getBuildProperty('addGenericAccessors'));
     }
 
     protected function hasDefaultValues()
@@ -172,7 +169,7 @@ abstract class AbstractObjectBuilder extends AbstractOMBuilder
      */
     public function applyBehaviorModifier($hookName, &$script, $tab = "        ")
     {
-        $this->applyBehaviorModifierBase($hookName, 'ObjectBuilderModifier', $script, $tab);
+        return $this->applyBehaviorModifierBase($hookName, 'ObjectBuilderModifier', $script, $tab);
     }
 
     /**

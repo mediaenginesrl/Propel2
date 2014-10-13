@@ -12,7 +12,6 @@ namespace Propel\Generator\Reverse;
 
 use Propel\Generator\Config\GeneratorConfigInterface;
 use Propel\Generator\Model\Database;
-use Propel\Generator\Model\Table;
 use Propel\Runtime\Connection\ConnectionInterface;
 
 /**
@@ -43,6 +42,14 @@ interface SchemaParserInterface
     public function setGeneratorConfig(GeneratorConfigInterface $config);
 
     /**
+     * Gets a specific propel (renamed) property from the build.
+     *
+     * @param  string $name
+     * @return mixed
+     */
+    public function getBuildProperty($name);
+
+    /**
      * Gets array of warning messages.
      * @return string[]
      */
@@ -54,16 +61,10 @@ interface SchemaParserInterface
     public function getPlatform();
 
     /**
-     * @param \Propel\Generator\Platform\PlatformInterface $platform
-     */
-    public function setPlatform($platform);
-
-    /**
      * Parse the schema and populate passed-in Database model object.
      *
      * @param  Database $database
-     * @param  Table[]  $additionalTables additional tables to parse and add to $database
      * @return int      number of generated tables
      */
-    public function parse(Database $database, array $additionalTables = array());
+    public function parse(Database $database);
 }

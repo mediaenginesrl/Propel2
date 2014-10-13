@@ -11,14 +11,12 @@
 namespace Propel\Generator\Builder;
 
 use Propel\Common\Pluralizer\PluralizerInterface;
-use Propel\Generator\Builder\Om\MultiExtendObjectBuilder;
 use Propel\Generator\Builder\Om\ObjectBuilder;
 use Propel\Generator\Builder\Om\QueryBuilder;
-use Propel\Generator\Builder\Om\QueryInheritanceBuilder;
 use Propel\Generator\Builder\Om\TableMapBuilder;
+use Propel\Generator\Builder\Sql\DataSQLBuilder;
 use Propel\Generator\Config\GeneratorConfigInterface;
 use Propel\Generator\Model\Database;
-use Propel\Generator\Model\Inheritance;
 use Propel\Generator\Model\Table;
 use Propel\Generator\Platform\PlatformInterface;
 
@@ -98,6 +96,12 @@ abstract class DataModelBuilder
      * @var DataModelBuilder
      */
     private $multiExtendObjectBuilder;
+
+    /**
+     * The Data-SQL builder for current table.
+     * @var DataSQLBuilder
+     */
+    private $dataSqlBuilder;
 
     /**
      * The Pluralizer class to use.
@@ -187,7 +191,7 @@ abstract class DataModelBuilder
 
     /**
      * Returns new or existing Object builder class for this table.
-     * @return TableMapBuilder
+     * @return ObjectBuilder
      */
     public function getTableMapBuilder()
     {
@@ -213,7 +217,7 @@ abstract class DataModelBuilder
 
     /**
      * Returns new or existing stub child object builder class for this table.
-     * @return MultiExtendObjectBuilder
+     * @return ObjectBuilder
      */
     public function getMultiExtendObjectBuilder()
     {
@@ -225,6 +229,19 @@ abstract class DataModelBuilder
     }
 
     /**
+     * Returns new or existing data sql builder class for this table.
+     * @return DataSQLBuilder
+     */
+    public function getDataSQLBuilder()
+    {
+        if (!isset($this->dataSqlBuilder)) {
+            $this->dataSqlBuilder = $this->getGeneratorConfig()->getConfiguredBuilder($this->getTable(), 'datasql');
+        }
+
+        return $this->dataSqlBuilder;
+    }
+
+    /**
      * Gets a new data model builder class for specified table and classname.
      *
      * @param  Table            $table
@@ -233,7 +250,6 @@ abstract class DataModelBuilder
      */
     public function getNewBuilder(Table $table, $classname)
     {
-        /** @var DataModelBuilder $builder */
         $builder = new $classname($table);
         $builder->setGeneratorConfig($this);
 
@@ -298,13 +314,10 @@ abstract class DataModelBuilder
 
     /**
      * Returns new Query Inheritance builder class for this table.
-     *
-     * @param  Inheritance   $child
      * @return ObjectBuilder
      */
-    public function getNewQueryInheritanceBuilder(Inheritance $child)
+    public function getNewQueryInheritanceBuilder($child)
     {
-        /** @var QueryInheritanceBuilder $queryInheritanceBuilder */
         $queryInheritanceBuilder = $this->getGeneratorConfig()->getConfiguredBuilder($this->getTable(), 'queryinheritance');
         $queryInheritanceBuilder->setChild($child);
 
@@ -313,13 +326,10 @@ abstract class DataModelBuilder
 
     /**
      * Returns new stub Query Inheritance builder class for this table.
-     *
-     * @param  Inheritance   $child
      * @return ObjectBuilder
      */
-    public function getNewStubQueryInheritanceBuilder(Inheritance $child)
+    public function getNewStubQueryInheritanceBuilder($child)
     {
-        /** @var QueryInheritanceBuilder $stubQueryInheritanceBuilder */
         $stubQueryInheritanceBuilder = $this->getGeneratorConfig()->getConfiguredBuilder($this->getTable(), 'queryinheritancestub');
         $stubQueryInheritanceBuilder->setChild($child);
 
@@ -346,13 +356,7 @@ abstract class DataModelBuilder
     }
 
     /**
-     * Get a specific configuration property.
-     *
-     * The name of the requested property must be given as a string, representing its hierarchy in the configuration
-     * array, with each level separated by a dot. I.e.:
-     * <code> $config['database']['adapter']['mysql']['tableType']</code>
-     * is expressed by:
-     * <code>'database.adapter.mysql.tableType</code>
+     * Get a specific [name transformed] build property.
      *
      * @param  string $name
      * @return string
@@ -360,7 +364,7 @@ abstract class DataModelBuilder
     public function getBuildProperty($name)
     {
         if ($this->getGeneratorConfig()) {
-            return $this->getGeneratorConfig()->getConfigProperty($name);
+            return $this->getGeneratorConfig()->getBuildProperty($name);
         }
 
         return null; // just to be explicit
@@ -408,10 +412,6 @@ abstract class DataModelBuilder
             }
         }
 
-        if (!$this->table->isIdentifierQuotingEnabled()) {
-            $this->platform->setIdentifierQuoting(false);
-        }
-
         return $this->platform;
     }
 
@@ -423,21 +423,6 @@ abstract class DataModelBuilder
     public function setPlatform(PlatformInterface $platform)
     {
         $this->platform = $platform;
-    }
-
-    /**
-     * Quotes identifier based on $this->getTable()->isIdentifierQuotingEnabled.
-     *
-     * @param string $text
-     * @return string
-     */
-    public function quoteIdentifier($text)
-    {
-        if ($this->getTable()->isIdentifierQuotingEnabled()) {
-            return $this->getPlatform()->doQuoting($text);
-        }
-
-        return $text;
     }
 
     /**
@@ -470,12 +455,31 @@ abstract class DataModelBuilder
     }
 
     /**
+     * Wraps call to Platform->quoteIdentifier() with a check to see whether quoting is enabled.
+     *
+     * All subclasses should call this quoteIdentifier() method rather than calling the Platform
+     * method directly.  This method is used by both DataSQLBuilder and DDLBuilder, and potentially
+     * in the OM builders also, which is why it is defined in this class.
+     *
+     * @param  string $text The text to quote.
+     * @return string Quoted text.
+     */
+    public function quoteIdentifier($text)
+    {
+        if (!$this->getBuildProperty('disableIdentifierQuoting')) {
+            return $this->getPlatform()->quoteIdentifier($text);
+        }
+
+        return $text;
+    }
+
+    /**
      * Returns the name of the current class being built, with a possible prefix.
      * @return string
      * @see OMBuilder#getClassName()
      */
     public function prefixClassName($identifier)
     {
-        return $this->getBuildProperty('generator.objectModel.classPrefix') . $identifier;
+        return $this->getBuildProperty('classPrefix') . $identifier;
     }
 }

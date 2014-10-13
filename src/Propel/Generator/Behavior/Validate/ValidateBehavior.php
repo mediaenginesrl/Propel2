@@ -43,26 +43,13 @@ class ValidateBehavior extends Behavior
         $this->builder = $builder;
         $this->builder->declareClasses(
             'Symfony\\Component\\Validator\\Mapping\\ClassMetadata',
+            'Symfony\\Component\\Validator\\Validator',
             'Symfony\\Component\\Validator\\DefaultTranslator',
             'Symfony\\Component\\Validator\\Mapping\\Loader\\StaticMethodLoader',
             'Symfony\\Component\\Validator\\ConstraintValidatorFactory',
             'Symfony\\Component\\Validator\\Mapping\\ClassMetadataFactory',
             'Symfony\\Component\\Validator\\ConstraintViolationList'
         );
-
-        //if SF >= 5.3 use new validator classes
-        if(class_exists('Symfony\\Component\\Validator\\Validator\\LegacyValidator')){
-            $this->builder->declareClasses(
-                'Symfony\\Component\\Validator\\Validator\\LegacyValidator',
-                'Symfony\\Component\\Validator\\Context\\ExecutionContextFactory',
-                'Symfony\\Component\\Validator\\Validator\\ValidatorInterface'
-            );
-        }else{
-            $this->builder->declareClasses(
-                'Symfony\\Component\\Validator\\Validator',
-                'Symfony\\Component\\Validator\\ValidatorInterface'
-            );
-        }
 
         $script = $this->addLoadValidatorMetadataMethod();
         $script .= $this->addValidateMethod();
@@ -85,8 +72,8 @@ class ValidateBehavior extends Behavior
      * Returns the parameters associated with a given column.
      * Useful for i18n behavior
      *
-     * @param  string $columnName The column name
-     * @return array  The array of parameters associated to given column
+     * @param string The column name
+     * @return array The array of parameters associated to given column
      */
     public function getParametersFromColumnName($columnName = null)
     {
@@ -107,7 +94,7 @@ class ValidateBehavior extends Behavior
      * Remove parameters associated with given column.
      * Useful for i18n behavior
      *
-     * @param string $columnName The column name
+     * @param  string  The column name
      */
     public function removeParametersFromColumnName($columnName = null)
     {

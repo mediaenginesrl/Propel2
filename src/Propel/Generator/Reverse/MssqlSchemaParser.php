@@ -12,13 +12,12 @@ namespace Propel\Generator\Reverse;
 
 // TODO: to remove
 use Propel\Generator\Model\Column;
-use Propel\Generator\Model\ColumnDefaultValue;
-use Propel\Generator\Model\ForeignKey;
-use Propel\Generator\Model\Index;
+use Task;
 
 use Propel\Generator\Model\Table;
 use Propel\Generator\Model\Database;
 use Propel\Generator\Model\PropelTypes;
+use Propel\Generator\Reverse\AbstractSchemaParser;
 
 /**
  * Microsoft SQL Server database schema parser.
@@ -78,7 +77,7 @@ class MssqlSchemaParser extends AbstractSchemaParser
         return self::$mssqlTypeMap;
     }
 
-    public function parse(Database $database, array $additionalTables = array())
+    public function parse(Database $database, Task $task = null)
     {
         $dataFetcher = $this->dbh->query("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME <> 'dtproperties'");
 
@@ -141,6 +140,7 @@ class MssqlSchemaParser extends AbstractSchemaParser
             $column = new Column($name);
             $column->setTable($table);
             $column->setDomainForType($propelType);
+            $column->getDomain()->setOriginSqlType($type);
             // We may want to provide an option to include this:
             // $column->getDomain()->replaceSqlType($type);
             $column->getDomain()->replaceSize($size);

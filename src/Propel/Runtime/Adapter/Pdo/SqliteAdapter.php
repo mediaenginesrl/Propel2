@@ -25,8 +25,8 @@ class SqliteAdapter extends PdoAdapter implements SqlAdapterInterface
      * For SQLite this method has no effect, since SQLite doesn't support specifying a character
      * set (or, another way to look at it, it doesn't require a single character set per DB).
      *
-     * @param ConnectionInterface $con     A PDO connection instance.
-     * @param string              $charset The charset encoding.
+     * @param PDO    $con     A PDO connection instance.
+     * @param string $charset The charset encoding.
      *
      * @throws \Propel\Runtime\Exception\PropelException If the specified charset doesn't match sqlite_libencoding()
      */
@@ -38,12 +38,17 @@ class SqliteAdapter extends PdoAdapter implements SqlAdapterInterface
     {
         $con->query('PRAGMA foreign_keys = ON');
         parent::initConnection($con, $settings);
+    }
 
-        //add regex support
-        $con->sqliteCreateFunction('regexp', function($pattern, $value) {
-            mb_regex_encoding('UTF-8');
-            return (false !== mb_ereg($pattern, $value)) ? 1 : 0;
-        });
+
+    /**
+     * @see AdapterInterface::useQuoteIdentifier()
+     *
+     * @return boolean
+     */
+    public function useQuoteIdentifier()
+    {
+        return true;
     }
 
     /**
@@ -104,7 +109,7 @@ class SqliteAdapter extends PdoAdapter implements SqlAdapterInterface
      */
     public function applyLimit(&$sql, $offset, $limit)
     {
-        if ($limit >= 0) {
+        if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ($offset > 0 ? ' OFFSET ' . $offset : '');
         } elseif ($offset > 0) {
             $sql .= sprintf(' LIMIT -1 OFFSET %i', $offset);

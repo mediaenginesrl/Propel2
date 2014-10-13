@@ -12,7 +12,6 @@ namespace Propel\Generator\Platform;
 
 use Propel\Generator\Config\GeneratorConfigInterface;
 use Propel\Generator\Model\Column;
-use Propel\Generator\Model\Domain;
 use Propel\Generator\Model\Table;
 use Propel\Runtime\Connection\ConnectionInterface;
 
@@ -55,9 +54,9 @@ interface PlatformInterface
     /**
      * Sets the GeneratorConfigInterface which contains any generator build properties.
      *
-     * @param GeneratorConfigInterface $generatorConfig
+     * @param GeneratorConfigInterface $config
      */
-    public function setGeneratorConfig(GeneratorConfigInterface $generatorConfig);
+    public function setGeneratorConfig(GeneratorConfigInterface $config);
 
     /**
      * Returns the short name of the database type that this platform represents.
@@ -90,12 +89,12 @@ interface PlatformInterface
 
     /**
      * @return string The RDBMS-specific SQL fragment for <code>NULL</code>
-     *                or <code>NOT NULL</code>.
+     * or <code>NOT NULL</code>.
      */
     public function getNullString($notNull);
 
     /**
-     * @return string The RDBMS-specific SQL fragment for autoincrement.
+     * @return The RDBMS-specific SQL fragment for autoincrement.
      */
     public function getAutoIncrement();
 
@@ -155,18 +154,11 @@ interface PlatformInterface
     public function quote($text);
 
     /**
-     * Quotes a identifier.
-     *
-     * @param string $text
-     * @return mixed
+     * Quotes identifiers used in database SQL.
+     * @param  string $text
+     * @return string Quoted identifier.
      */
-    public function doQuoting($text);
-
-    /**
-     * Whether RDBMS supports native index sizes.
-     * @return boolean
-     */
-    public function supportsIndexSize();
+    public function quoteIdentifier($text);
 
     /**
      * Whether RDBMS supports native ON DELETE triggers (e.g. ON DELETE CASCADE).
@@ -250,22 +242,4 @@ interface PlatformInterface
      * @param Table $table The table object which gets modified.
      */
     public function normalizeTable(Table $table);
-
-
-    /**
-     * Get the PHP snippet for binding a value to a column.
-     * Warning: duplicates logic from AdapterInterface::bindValue().
-     * Any code modification here must be ported there.
-     */
-    public function getColumnBindingPHP(Column $column, $identifier, $columnValueAccessor, $tab = "            ");
-
-    /**
-     * @return boolean
-     */
-    public function isIdentifierQuotingEnabled();
-
-    /**
-     * @param boolean $enabled
-     */
-    public function setIdentifierQuoting($enabled);
 }

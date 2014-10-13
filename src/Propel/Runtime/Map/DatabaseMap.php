@@ -162,9 +162,9 @@ class DatabaseMap
      * Get a ColumnMap for the column by name.
      * Name must be fully qualified, e.g. book.AUTHOR_ID
      *
-     * @param  string                        $qualifiedColumnName Name of the column.
-     * @return \Propel\Runtime\Map\ColumnMap A TableMap
-     * @throws TableNotFoundException        If the table is undefined, or if the table is undefined
+     * @param                                             $qualifiedColumnName Name of the column.
+     * @return \Propel\Runtime\Map\ColumnMap              A TableMap
+     * @throws \Propel\Runtime\Map\TableNotFoundException If the table is undefined, or if the table is undefined
      */
     public function getColumn($qualifiedColumnName)
     {
@@ -173,11 +173,6 @@ class DatabaseMap
         return $this->getTable($tableName)->getColumn($columnName, false);
     }
 
-    /**
-     * @param string $phpName
-     *
-     * @return TableMap
-     */
     public function getTableByPhpName($phpName)
     {
         if ('\\' !== $phpName[0]) {

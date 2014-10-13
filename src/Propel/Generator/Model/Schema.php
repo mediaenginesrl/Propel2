@@ -131,8 +131,8 @@ class Schema
      * The first boolean parameter tells whether or not to run the
      * final initialization process.
      *
-     * @param  boolean    $doFinalInitialization
-     * @return Database[]
+     * @param  boolean $doFinalInitialization
+     * @return array
      */
     public function getDatabases($doFinalInitialization = true)
     {
@@ -253,7 +253,7 @@ class Schema
     /**
      * Merge other Schema objects together into this Schema object.
      *
-     * @param Schema[] $schemas
+     * @param array $schemas
      */
     public function joinSchemas(array $schemas)
     {
@@ -274,7 +274,7 @@ class Schema
                     }
                     // join database behaviors
                     foreach ($addDb->getBehaviors() as $addBehavior) {
-                        if (!$db->hasBehavior($addBehavior->getId())) {
+                        if (!$db->hasBehavior($addBehavior->getName())) {
                             $db->addBehavior($addBehavior);
                         }
                     }
@@ -311,7 +311,7 @@ class Schema
     public function toString()
     {
         $dumper = new XmlDumper();
-
+        
         return $dumper->dumpSchema($this);
     }
 

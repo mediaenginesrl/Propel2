@@ -10,6 +10,8 @@
 
 namespace Propel\Generator\Model;
 
+use Propel\Generator\Exception\BehaviorNotFoundException;
+
 /**
  * An abstract model class to represent objects that belongs to a schema like
  * databases, tables, columns, indices, unices, foreign keys...
@@ -172,7 +174,7 @@ abstract class MappingModel implements MappingModelInterface
 
     /**
      * Returns the list of all vendor information.
-     *
+     * 
      * @return VendorInfo[]
      */
     public function getVendorInformation()

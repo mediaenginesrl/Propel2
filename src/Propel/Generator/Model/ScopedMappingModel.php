@@ -37,7 +37,7 @@ abstract class ScopedMappingModel extends MappingModel
 
     /**
      * Returns whether or not the package has been overriden.
-     *
+     * 
      * @return boolean
      */
     public function isPackageOverriden()
@@ -83,7 +83,7 @@ abstract class ScopedMappingModel extends MappingModel
         }
 
         $this->namespace = $namespace;
-        if ($namespace && (!$this->package || $this->packageOverridden) && $this->getBuildProperty('generator.namespaceAutoPackage')) {
+        if ($namespace && (!$this->package || $this->packageOverridden) && $this->getBuildProperty('namespaceAutoPackage')) {
             $this->package = str_replace('\\', '.', $namespace);
             $this->packageOverridden = true;
         }

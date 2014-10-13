@@ -114,6 +114,16 @@ class MysqlAdapter extends PdoAdapter implements SqlAdapterInterface
     }
 
     /**
+     * @see AdapterInterface::useQuoteIdentifier()
+     *
+     * @return boolean
+     */
+    public function useQuoteIdentifier()
+    {
+        return true;
+    }
+
+    /**
      * @see AdapterInterface::applyLimit()
      *
      * @param string  $sql
@@ -122,7 +132,7 @@ class MysqlAdapter extends PdoAdapter implements SqlAdapterInterface
      */
     public function applyLimit(&$sql, $offset, $limit)
     {
-        if ($limit >= 0) {
+        if ($limit > 0) {
             $sql .= ' LIMIT ' . ($offset > 0 ? $offset . ', ' : '') . $limit;
         } elseif ($offset > 0) {
             $sql .= ' LIMIT ' . $offset . ', 18446744073709551615';
@@ -179,7 +189,7 @@ class MysqlAdapter extends PdoAdapter implements SqlAdapterInterface
      * Protects MySQL from charset injection risk.
      * @see http://www.propelorm.org/ticket/1360
      *
-     * @param array $params the connection parameters from the configuration
+     * @param array the connection parameters from the configuration
      *
      * @return array the modified parameters
      */

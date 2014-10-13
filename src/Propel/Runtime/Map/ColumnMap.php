@@ -12,7 +12,7 @@ namespace Propel\Runtime\Map;
 
 use Propel\Runtime\Adapter\AdapterInterface;
 use Propel\Runtime\Map\Exception\ForeignKeyNotFoundException;
-use Propel\Generator\Model\PropelTypes;
+use Propel\Runtime\Util\PropelColumnTypes;
 
 /**
  * ColumnMap is used to model a column of a table in a database.
@@ -172,7 +172,7 @@ class ColumnMap
     /**
      * Set the Propel type of this column.
      *
-     * @param string $type A string representing the Propel type (e.g. PropelTypes::DATE).
+     * @param string $type A string representing the Propel type (e.g. PropelColumnTypes::DATE).
      */
     public function setType($type)
     {
@@ -182,7 +182,7 @@ class ColumnMap
     /**
      * Get the Propel type of this column.
      *
-     * @return string A string representing the Propel type (e.g. PropelTypes::DATE).
+     * @return string A string representing the Propel type (e.g. PropelColumnTypes::DATE).
      */
     public function getType()
     {
@@ -196,7 +196,7 @@ class ColumnMap
      */
     public function getPdoType()
     {
-        return PropelTypes::getPdoType($this->type);
+        return PropelColumnTypes::getPdoType($this->type);
     }
 
     /**
@@ -207,9 +207,9 @@ class ColumnMap
     public function isLob()
     {
         return in_array($this->type, array(
-            PropelTypes::BLOB,
-            PropelTypes::VARBINARY,
-            PropelTypes::LONGVARBINARY,
+            PropelColumnTypes::BLOB,
+            PropelColumnTypes::VARBINARY,
+            PropelColumnTypes::LONGVARBINARY,
         ));
     }
 
@@ -221,11 +221,11 @@ class ColumnMap
     public function isTemporal()
     {
         return in_array($this->type, array(
-            PropelTypes::TIMESTAMP,
-            PropelTypes::DATE,
-            PropelTypes::TIME,
-            PropelTypes::BU_DATE,
-            PropelTypes::BU_TIMESTAMP,
+            PropelColumnTypes::TIMESTAMP,
+            PropelColumnTypes::DATE,
+            PropelColumnTypes::TIME,
+            PropelColumnTypes::BU_DATE,
+            PropelColumnTypes::BU_TIMESTAMP,
         ));
     }
 
@@ -237,15 +237,15 @@ class ColumnMap
     public function isNumeric()
     {
         return in_array($this->type, array(
-            PropelTypes::NUMERIC,
-            PropelTypes::DECIMAL,
-            PropelTypes::TINYINT,
-            PropelTypes::SMALLINT,
-            PropelTypes::INTEGER,
-            PropelTypes::BIGINT,
-            PropelTypes::REAL,
-            PropelTypes::FLOAT,
-            PropelTypes::DOUBLE,
+            PropelColumnTypes::NUMERIC,
+            PropelColumnTypes::DECIMAL,
+            PropelColumnTypes::TINYINT,
+            PropelColumnTypes::SMALLINT,
+            PropelColumnTypes::INTEGER,
+            PropelColumnTypes::BIGINT,
+            PropelColumnTypes::REAL,
+            PropelColumnTypes::FLOAT,
+            PropelColumnTypes::DOUBLE,
         ));
     }
 
@@ -257,9 +257,9 @@ class ColumnMap
     public function isText()
     {
         return in_array($this->type, array(
-            PropelTypes::VARCHAR,
-            PropelTypes::LONGVARCHAR,
-            PropelTypes::CHAR,
+            PropelColumnTypes::VARCHAR,
+            PropelColumnTypes::LONGVARCHAR,
+            PropelColumnTypes::CHAR,
         ));
     }
 
@@ -306,7 +306,7 @@ class ColumnMap
     /**
      * Set if this column may be null.
      *
-     * @param boolean $nn True if column may be null.
+     * @param      Boolean nn True if column may be null.
      */
     public function setNotNull($nn)
     {
@@ -345,8 +345,8 @@ class ColumnMap
     /**
      * Set the foreign key for this column.
      *
-     * @param string $tableName  The name of the table that is foreign.
-     * @param string $columnName The name of the column that is foreign.
+     * @param      string tableName The name of the table that is foreign.
+     * @param      string columnName The name of the column that is foreign.
      */
     public function setForeignKey($tableName, $columnName)
     {

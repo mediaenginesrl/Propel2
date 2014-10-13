@@ -104,7 +104,7 @@ class NestedSetBehaviorQueryBuilderModifier
 /**
  * Filter the query to restrict the result to root objects
  *
- * @return    \$this|{$this->queryClassName} The current query, for fluid interface
+ * @return    {$this->queryClassName} The current query, for fluid interface
  */
 public function treeRoots()
 {
@@ -121,7 +121,7 @@ public function treeRoots()
  *
  * @param     int \$scope        Scope to determine which objects node to return
  *
- * @return    \$this|{$this->queryClassName} The current query, for fluid interface
+ * @return    {$this->queryClassName} The current query, for fluid interface
  */
 public function inTree(\$scope = null)
 {
@@ -132,7 +132,7 @@ public function inTree(\$scope = null)
 
     protected function addDescendantsOf(&$script)
     {
-        $objectName = '$' . $this->table->getCamelCaseName();
+        $objectName = '$' . $this->table->getStudlyPhpName();
         $script .= "
 /**
  * Filter the query to restrict the result to descendants of an object
@@ -157,7 +157,7 @@ public function descendantsOf($objectName)
 
     protected function addBranchOf(&$script)
     {
-        $objectName = '$' . $this->table->getCamelCaseName();
+        $objectName = '$' . $this->table->getStudlyPhpName();
         $script .= "
 /**
  * Filter the query to restrict the result to the branch of an object.
@@ -183,14 +183,14 @@ public function branchOf($objectName)
 
     protected function addChildrenOf(&$script)
     {
-        $objectName = '$' . $this->table->getCamelCaseName();
+        $objectName = '$' . $this->table->getStudlyPhpName();
         $script .= "
 /**
  * Filter the query to restrict the result to children of an object
  *
  * @param     {$this->objectClassName} $objectName The object to use for child search
  *
- * @return    \$this|{$this->queryClassName} The current query, for fluid interface
+ * @return    {$this->queryClassName} The current query, for fluid interface
  */
 public function childrenOf($objectName)
 {
@@ -203,7 +203,7 @@ public function childrenOf($objectName)
 
     protected function addSiblingsOf(&$script)
     {
-        $objectName = '$' . $this->table->getCamelCaseName();
+        $objectName = '$' . $this->table->getStudlyPhpName();
         $script .= "
 /**
  * Filter the query to restrict the result to siblings of an object.
@@ -212,7 +212,7 @@ public function childrenOf($objectName)
  * @param     {$this->objectClassName} $objectName The object to use for sibling search
  * @param      ConnectionInterface \$con Connection to use.
  *
- * @return    \$this|{$this->queryClassName} The current query, for fluid interface
+ * @return    {$this->queryClassName} The current query, for fluid interface
  */
 public function siblingsOf($objectName, ConnectionInterface \$con = null)
 {
@@ -230,7 +230,7 @@ public function siblingsOf($objectName, ConnectionInterface \$con = null)
 
     protected function addAncestorsOf(&$script)
     {
-        $objectName = '$' . $this->table->getCamelCaseName();
+        $objectName = '$' . $this->table->getStudlyPhpName();
         $script .= "
 /**
  * Filter the query to restrict the result to ancestors of an object
@@ -255,7 +255,7 @@ public function ancestorsOf($objectName)
 
     protected function addRootsOf(&$script)
     {
-        $objectName = '$' . $this->table->getCamelCaseName();
+        $objectName = '$' . $this->table->getStudlyPhpName();
         $script .= "
 /**
  * Filter the query to restrict the result to roots of an object.
@@ -316,12 +316,10 @@ public function orderByLevel(\$reverse = false)
 {
     if (\$reverse) {
         return \$this
-            ->addDescendingOrderByColumn({$this->objectClassName}::LEVEL_COL)
-            ->addDescendingOrderByColumn({$this->objectClassName}::LEFT_COL);
+            ->addAscendingOrderByColumn({$this->objectClassName}::RIGHT_COL);
     } else {
         return \$this
-            ->addAscendingOrderByColumn({$this->objectClassName}::LEVEL_COL)
-            ->addAscendingOrderByColumn({$this->objectClassName}::LEFT_COL);
+            ->addDescendingOrderByColumn({$this->objectClassName}::RIGHT_COL);
     }
 }
 ";

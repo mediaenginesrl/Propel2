@@ -12,9 +12,7 @@ namespace Propel\Generator\Behavior\Archivable;
 
 use Propel\Generator\Exception\InvalidArgumentException;
 use Propel\Generator\Model\Behavior;
-use Propel\Generator\Model\Column;
 use Propel\Generator\Model\Index;
-use Propel\Generator\Model\Table;
 
 /**
  * Keeps tracks of an ActiveRecord object, even after deletion
@@ -42,7 +40,7 @@ class ArchivableBehavior extends Behavior
     public function modifyDatabase()
     {
         foreach ($this->getDatabase()->getTables() as $table) {
-            if ($table->hasBehavior($this->getId())) {
+            if ($table->hasBehavior($this->getName())) {
                 // don't add the same behavior twice
                 continue;
             }
@@ -102,13 +100,13 @@ class ArchivableBehavior extends Behavior
             // copy the indices
             foreach ($table->getIndices() as $index) {
                 $copiedIndex = clone $index;
+                $copiedIndex->setName('');
                 $archiveTable->addIndex($copiedIndex);
             }
             // copy unique indices to indices
             // see https://github.com/propelorm/Propel/issues/175 for details
             foreach ($table->getUnices() as $unique) {
                 $index = new Index();
-                $index->setTable($table);
                 foreach ($unique->getColumns() as $columnName) {
                     if ($size = $unique->getColumnSize($columnName)) {
                         $index->addColumn(array('name' => $columnName, 'size' => $size));

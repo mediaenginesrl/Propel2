@@ -7,6 +7,7 @@ use Propel\Runtime\Exception\InvalidArgumentException;
 use Propel\Runtime\Exception\LogicException;
 use Propel\Runtime\Formatter\AbstractFormatter;
 use Propel\Runtime\Map\TableMap;
+use Propel\Runtime\ActiveQuery\Criteria;
 
 class BaseModelCriteria extends Criteria implements \IteratorAggregate
 {
@@ -16,7 +17,6 @@ class BaseModelCriteria extends Criteria implements \IteratorAggregate
 
     protected $modelAlias;
 
-    /** @var TableMap */
     protected $tableMap;
 
     protected $formatter;
@@ -46,7 +46,7 @@ class BaseModelCriteria extends Criteria implements \IteratorAggregate
      * together with the main object.
      *
      * @see with()
-     * @return ModelWith[]
+     * @return array
      */
     public function getWith()
     {
@@ -59,7 +59,7 @@ class BaseModelCriteria extends Criteria implements \IteratorAggregate
      *
      * @param    array
      *
-     * @return $this|ModelCriteria The current object, for fluid interface
+     * @return ModelCriteria The current object, for fluid interface
      */
     public function setWith($with)
     {
@@ -77,7 +77,7 @@ class BaseModelCriteria extends Criteria implements \IteratorAggregate
      * </code>
      *
      * @param  string|AbstractFormatter $formatter a formatter class name, or a formatter instance
-     * @return $this|ModelCriteria      The current object, for fluid interface
+     * @return ModelCriteria            The current object, for fluid interface
      *
      * @throws InvalidArgumentException
      */
@@ -128,7 +128,7 @@ class BaseModelCriteria extends Criteria implements \IteratorAggregate
      *
      * @param string $modelName
      *
-     * @return $this|ModelCriteria The current object, for fluid interface
+     * @return ModelCriteria The current object, for fluid interface
      */
     public function setModelName($modelName)
     {
@@ -158,7 +158,7 @@ class BaseModelCriteria extends Criteria implements \IteratorAggregate
      * @param string  $modelAlias    The model alias
      * @param boolean $useAliasInSQL Whether to use the alias in the SQL code (false by default)
      *
-     * @return $this|ModelCriteria The current object, for fluid interface
+     * @return ModelCriteria The current object, for fluid interface
      */
     public function setModelAlias($modelAlias, $useAliasInSQL = false)
     {
@@ -219,7 +219,7 @@ class BaseModelCriteria extends Criteria implements \IteratorAggregate
      * constructed on a Propel\Runtime\Collection\PropelCollection.
      * Compulsory for implementation of \IteratorAggregate.
      *
-     * @return \Traversable
+     * @return Traversable
      *
      * @throws LogicException
      */

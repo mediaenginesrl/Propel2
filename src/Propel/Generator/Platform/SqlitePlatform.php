@@ -15,6 +15,7 @@ use Propel\Generator\Model\Column;
 use Propel\Generator\Model\ColumnDefaultValue;
 use Propel\Generator\Model\Database;
 use Propel\Generator\Model\Diff\ColumnDiff;
+use Propel\Generator\Model\Diff\DatabaseDiff;
 use Propel\Generator\Model\Diff\TableDiff;
 use Propel\Generator\Model\Domain;
 use Propel\Generator\Model\ForeignKey;
@@ -35,7 +36,7 @@ class SqlitePlatform extends DefaultPlatform
      *
      * @var bool
      */
-    protected $foreignKeySupport = null;
+    private $foreignKeySupport = null;
 
     /**
      * If we should alter the table through creating a temporarily created table,
@@ -43,7 +44,7 @@ class SqlitePlatform extends DefaultPlatform
      *
      * @var bool
      */
-    protected $tableAlteringWorkaround = true;
+    private $tableAlteringWorkaround = true;
 
     /**
      * Initializes db specific domain mapping.
@@ -63,9 +64,9 @@ class SqlitePlatform extends DefaultPlatform
         $this->setSchemaDomainMapping(new Domain(PropelTypes::BINARY, 'BLOB'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::VARBINARY, 'MEDIUMBLOB'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::LONGVARBINARY, 'LONGBLOB'));
-        $this->setSchemaDomainMapping(new Domain(PropelTypes::BLOB, 'BLOB'));
+        $this->setSchemaDomainMapping(new Domain(PropelTypes::BLOB, 'LONGBLOB'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::CLOB, 'LONGTEXT'));
-        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'BLOB'));
+        $this->setSchemaDomainMapping(new Domain(PropelTypes::OBJECT, 'MEDIUMTEXT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::PHP_ARRAY, 'MEDIUMTEXT'));
         $this->setSchemaDomainMapping(new Domain(PropelTypes::ENUM, 'TINYINT'));
     }
@@ -75,29 +76,15 @@ class SqlitePlatform extends DefaultPlatform
         return '§';
     }
 
-    public function getDefaultTypeSizes()
-    {
-        return array(
-            'char'      => 1,
-            'character' => 1,
-            'integer'   => 32,
-            'bigint'    => 64,
-            'smallint'  => 16,
-            'double precision' => 54
-        );
-    }
-
     /**
      * {@inheritdoc}
      */
     public function setGeneratorConfig(GeneratorConfigInterface $generatorConfig)
     {
-        parent::setGeneratorConfig($generatorConfig);
-
-        if (null !== ($foreignKeySupport = $generatorConfig->getConfigProperty('database.adapter.sqlite.foreignKey'))) {
+        if (null !== ($foreignKeySupport = $generatorConfig->getBuildProperty('sqliteForeignkey'))) {
             $this->foreignKeySupport = filter_var($foreignKeySupport, FILTER_VALIDATE_BOOLEAN);;
         }
-        if (null !== ($tableAlteringWorkaround = $generatorConfig->getConfigProperty('database.adapter.sqlite.tableAlteringWorkaround'))) {
+        if (null !== ($tableAlteringWorkaround = $generatorConfig->getBuildProperty('sqliteTableAlteringWorkaround'))) {
             $this->tableAlteringWorkaround = filter_var($tableAlteringWorkaround, FILTER_VALIDATE_BOOLEAN);;;
         }
     }
@@ -105,7 +92,6 @@ class SqlitePlatform extends DefaultPlatform
     /**
      * Builds the DDL SQL to remove a list of columns
      *
-     * @param  Column[] $columns
      * @return string
      */
     public function getAddColumnsDDL($columns)
@@ -121,15 +107,15 @@ ALTER TABLE %s ADD %s;
                 $this->getColumnDDL($column)
             );
         }
-
-        return $ret;
     }
+
 
     /**
      * {@inheritdoc}
      */
     public function getModifyTableDDL(TableDiff $tableDiff)
     {
+
         $changedNotEditableThroughDirectDDL = $this->tableAlteringWorkaround && (false
             || $tableDiff->hasModifiedFks()
             || $tableDiff->hasModifiedIndices()
@@ -248,6 +234,7 @@ DROP TABLE %s;
     public function getBeginDDL()
     {
         return '
+END;
 PRAGMA foreign_keys = OFF;
 ';
     }
@@ -256,6 +243,7 @@ PRAGMA foreign_keys = OFF;
     {
         return '
 PRAGMA foreign_keys = ON;
+BEGIN;
 ';
     }
 
@@ -280,25 +268,31 @@ PRAGMA foreign_keys = ON;
 
     /**
      * Unfortunately, SQLite does not support composite pks where one is AUTOINCREMENT,
-     * so we have to flag both as NOT NULL and create in either way a UNIQUE constraint over pks since
-     * those UNIQUE is otherwise automatically created by the sqlite engine.
+     * so we have to flag both as NOT NULL and create a UNIQUE constraint.
      *
      * @param Table $table
      */
     public function normalizeTable(Table $table)
     {
-        if ($table->getPrimaryKey()) {
+        if (count($pks = $table->getPrimaryKey()) > 1 && $table->hasAutoIncrementPrimaryKey()) {
+            foreach ($pks as $pk) {
+                //no pk can be NULL, as usual
+                $pk->setNotNull(true);
+                //in SQLite the column with the AUTOINCREMENT MUST be a primary key, too.
+                if (!$pk->isAutoIncrement()) {
+                    //for all other sub keys we remove it, since we create a UNIQUE constraint over all primary keys.
+                    $pk->setPrimaryKey(false);
+                }
+            }
+
             //search if there is already a UNIQUE constraint over the primary keys
             $pkUniqueExist = false;
             foreach ($table->getUnices() as $unique) {
-                $coversAllPrimaryKeys = true;
+                $allPk = false;
                 foreach ($unique->getColumns() as $columnName) {
-                    if (!$table->getColumn($columnName)->isPrimaryKey()) {
-                        $coversAllPrimaryKeys = false;
-                        break;
-                    }
+                    $allPk &= $table->getColumn($columnName)->isPrimaryKey();
                 }
-                if ($coversAllPrimaryKeys) {
+                if ($allPk) {
                     //there's already a unique constraint with the composite pk
                     $pkUniqueExist = true;
                     break;
@@ -308,22 +302,10 @@ PRAGMA foreign_keys = ON;
             //there is none, let's create it
             if (!$pkUniqueExist) {
                 $unique = new Unique();
-                foreach ($table->getPrimaryKey() as $pk) {
+                foreach ($pks as $pk) {
                     $unique->addColumn($pk);
                 }
                 $table->addUnique($unique);
-            }
-
-            if ($table->hasAutoIncrementPrimaryKey()) {
-                foreach ($table->getPrimaryKey() as $pk) {
-                    //no pk can be NULL, as usual
-                    $pk->setNotNull(true);
-                    //in SQLite the column with the AUTOINCREMENT MUST be a primary key, too.
-                    if (!$pk->isAutoIncrement()) {
-                        //for all other sub keys we remove it, since we create a UNIQUE constraint over all primary keys.
-                        $pk->setPrimaryKey(false);
-                    }
-                }
             }
         }
 
@@ -355,7 +337,7 @@ PRAGMA foreign_keys = ON;
     /**
      * {@inheritdoc}
      */
-    public function getRenameColumnDDL(Column $fromColumn, Column $toColumn)
+    public function getRenameColumnDDL($fromColumn, $toColumn)
     {
         //not supported
         return '';
@@ -504,9 +486,9 @@ PRAGMA foreign_keys = ON;
         $pattern = "FOREIGN KEY (%s) REFERENCES %s (%s)";
 
         $script = sprintf($pattern,
-            $this->getColumnListDDL($fk->getLocalColumnObjects()),
+            $this->getColumnListDDL($fk->getLocalColumns()),
             $this->quoteIdentifier($fk->getForeignTableName()),
-            $this->getColumnListDDL($fk->getForeignColumnObjects())
+            $this->getColumnListDDL($fk->getForeignColumns())
         );
 
         if ($fk->hasOnUpdate()) {
@@ -532,12 +514,9 @@ PRAGMA foreign_keys = ON;
         ));
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function doQuoting($text)
+    public function quoteIdentifier($text)
     {
-        return '[' . strtr($text, array('.' => '].[')) . ']';
+        return $this->isIdentifierQuotingEnabled ? '[' . $text . ']' : $text;
     }
 
     public function supportsSchemas()

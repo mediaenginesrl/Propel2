@@ -13,7 +13,9 @@ namespace Propel\Runtime\Map;
 use Propel\Runtime\Map\Exception\ColumnNotFoundException;
 use Propel\Runtime\Map\Exception\RelationNotFoundException;
 use Propel\Runtime\Propel;
+use Propel\Runtime\Connection\ConnectionInterface;
 use Propel\Runtime\ActiveQuery\Criteria;
+use Propel\Runtime\Exception\RuntimeException;
 
 /**
  * TableMap is used to model a table in a database.
@@ -32,16 +34,22 @@ class TableMap
     const TYPE_PHPNAME = 'phpName';
 
     /**
-     * camelCase type
+     * studlyphpname type
      * e.g. 'authorId'
      */
-    const TYPE_CAMELNAME = 'camelName';
+    const TYPE_STUDLYPHPNAME = 'studlyPhpName';
 
     /**
      * column (tableMap) name type
      * e.g. 'book.AUTHOR_ID'
      */
     const TYPE_COLNAME = 'colName';
+
+    /**
+     * column part of the column tableMap name
+     * e.g. 'AUTHOR_ID'
+     */
+    const TYPE_RAW_COLNAME = 'rawColName';
 
     /**
      * column fieldname type
@@ -159,11 +167,6 @@ class TableMap
      * @var mixed
      */
     protected $pkInfo;
-
-    /**
-     * @var boolean
-     */
-    protected $identifierQuoting = null;
 
     /**
      * Construct a new TableMap.
@@ -411,7 +414,7 @@ class TableMap
             $this->foreignKeys[$name] = $col;
         }
 
-        $this->columns[ColumnMap::normalizeName($name)] = $col;
+        $this->columns[$name] = $col;
         $this->columnsByPhpName[$phpName] = $col;
 
         return $col;
@@ -509,12 +512,10 @@ class TableMap
     /**
      * Add a primary key column to this Table.
      *
-     * @param  string                        $columnName   A String with the column name.
-     * @param  string                        $phpName      A string representing the PHP name.
-     * @param  string                        $type         A string specifying the Propel type.
-     * @param  boolean                       $isNotNull    Whether column does not allow NULL values.
-     * @param  int                           $size         An int specifying the size.
-     * @param  string                        $defaultValue The default value for this column.
+     * @param  string                        $columnName A String with the column name.
+     * @param  string                        $type       A string specifying the Propel type.
+     * @param  boolean                       $isNotNull  Whether column does not allow NULL values.
+     * @param                                $size       An int specifying the size.
      * @return \Propel\Runtime\Map\ColumnMap Newly added PrimaryKey column.
      */
     public function addPrimaryKey($columnName, $phpName, $type, $isNotNull = false, $size = null, $defaultValue = null)
@@ -526,7 +527,6 @@ class TableMap
      * Add a foreign key column to the table.
      *
      * @param  string                        $columnName   A String with the column name.
-     * @param  string                        $phpName      A string representing the PHP name.
      * @param  string                        $type         A string specifying the Propel type.
      * @param  string                        $fkTable      A String with the foreign key table name.
      * @param  string                        $fkColumn     A String with the foreign key column name.
@@ -544,7 +544,6 @@ class TableMap
      * Add a foreign primary key column to the table.
      *
      * @param  string                        $columnName   A String with the column name.
-     * @param  string                        $phpName      A string representing the PHP name.
      * @param  string                        $type         A string specifying the Propel type.
      * @param  string                        $fkTable      A String with the foreign key table name.
      * @param  string                        $fkColumn     A String with the foreign key column name.
@@ -682,7 +681,7 @@ class TableMap
      * Gets the RelationMap objects of the table
      * This method will build the relations if they are not built yet
      *
-     * @return RelationMap[] list of RelationMap objects
+     * @return array list of RelationMap objects
      */
     public function getRelations()
     {
@@ -731,6 +730,125 @@ class TableMap
         return null;
     }
 
+    /**
+     * Method to perform inserts based on values and keys in a
+     * Criteria.
+     * <p>
+     * If the primary key is auto incremented the data in Criteria
+     * will be inserted and the auto increment value will be returned.
+     * <p>
+     * If the primary key is included in Criteria then that value will
+     * be used to insert the row.
+     * <p>
+     * If no primary key is included in Criteria then we will try to
+     * figure out the primary key from the database map and insert the
+     * row with the next available id using util.db.IDBroker.
+     * <p>
+     * If no primary key is defined for the table the values will be
+     * inserted as specified in Criteria and null will be returned.
+     *
+     * @param  Criteria            $criteria Object containing values to insert.
+     * @param  ConnectionInterface $con      A ConnectionInterface connection.
+     * @return mixed               The primary key for the new row if the primary key is auto-generated. Otherwise will return null.
+     *
+     * @throws \Propel\Runtime\Exception\RuntimeException
+     */
+    public static function doInsert($criteria, ConnectionInterface $con = null)
+    {
+        // The primary key
+        $id = null;
+        if (null === $con) {
+            $con = Propel::getServiceContainer()->getWriteConnection($criteria->getDbName());
+        }
+        $db = Propel::getServiceContainer()->getAdapter($criteria->getDbName());
+
+        // Get the table name and method for determining the primary
+        // key value.
+        $keys = $criteria->keys();
+        if (!empty($keys)) {
+            $tableName = $criteria->getTableName($keys[0]);
+        } else {
+            throw new RuntimeException('Database insert attempted without anything specified to insert.');
+        }
+
+        $tableName = $criteria->getTableName($keys[0]);
+        $dbMap = Propel::getServiceContainer()->getDatabaseMap($criteria->getDbName());
+        $tableMap = $dbMap->getTable($tableName);
+        $keyInfo = $tableMap->getPrimaryKeyMethodInfo();
+        $useIdGen = $tableMap->isUseIdGenerator();
+        //$keyGen = $con->getIdGenerator();
+
+        $pk = static::getPrimaryKey($criteria);
+
+        // only get a new key value if you need to
+        // the reason is that a primary key might be defined
+        // but you are still going to set its value. for example:
+        // a join table where both keys are primary and you are
+        // setting both columns with your own values
+
+        // pk will be null if there is no primary key defined for the table
+        // we're inserting into.
+        if (null !== $pk && $useIdGen && !$criteria->keyContainsValue($pk->getFullyQualifiedName()) && $db->isGetIdBeforeInsert()) {
+            try {
+                $id = $db->getId($con, $keyInfo);
+            } catch (\Exception $e) {
+                throw new RuntimeException('Unable to get sequence id.', 0, $e);
+            }
+            $criteria->add($pk->getFullyQualifiedName(), $id);
+        }
+
+        try {
+            $adapter = Propel::getServiceContainer()->getAdapter($criteria->getDBName());
+
+            $qualifiedCols = $criteria->keys(); // we need table.column cols when populating values
+            $columns = array(); // but just 'column' cols for the SQL
+            foreach ($qualifiedCols as $qualifiedCol) {
+                $columns[] = substr($qualifiedCol, strrpos($qualifiedCol, '.') + 1);
+            }
+
+            // add identifiers
+            if ($adapter->useQuoteIdentifier()) {
+                $columns = array_map(array($adapter, 'quoteIdentifier'), $columns);
+                $tableName = $adapter->quoteIdentifierTable($tableName);
+            }
+
+            $sql = 'INSERT INTO ' . $tableName
+                . ' (' . implode(',', $columns) . ')'
+                . ' VALUES (';
+            // . substr(str_repeat("?,", count($columns)), 0, -1) .
+            for ($p = 1, $cnt = count($columns); $p <= $cnt; $p++) {
+                $sql .= ':p'.$p;
+                if ($p !== $cnt) {
+                    $sql .= ',';
+                }
+            }
+            $sql .= ')';
+
+            $params = static::buildParams($qualifiedCols, $criteria);
+
+            $db->cleanupSQL($sql, $params, $criteria, $dbMap);
+
+            $stmt = $con->prepare($sql);
+            $db->bindValues($stmt, $params, $dbMap, $db);
+            $stmt->execute();
+
+        } catch (\Exception $e) {
+            Propel::log($e->getMessage(), Propel::LOG_ERR);
+            throw new RuntimeException(sprintf('Unable to execute INSERT statement [%s]', $sql), 0, $e);
+        }
+
+        // If the primary key column is auto-incremented, get the id now.
+        if (null !== $pk && $useIdGen && $db->isGetIdAfterInsert()) {
+            try {
+                $id = $db->getId($con, $keyInfo);
+            } catch (\Exception $e) {
+                throw new RuntimeException("Unable to get autoincrement id.", 0, $e);
+            }
+        }
+
+        return $id;
+    }
+
     public static function getFieldnamesForClass($classname, $type = TableMap::TYPE_PHPNAME)
     {
         $callable   = array($classname::TABLE_MAP, 'getFieldnames');
@@ -745,50 +863,4 @@ class TableMap
 
         return call_user_func_array($callable, $args);
     }
-
-    /**
-     * @return boolean
-     */
-    public function isIdentifierQuotingEnabled()
-    {
-        return $this->identifierQuoting;
-    }
-
-    /**
-     * @param boolean $identifierQuoting
-     */
-    public function setIdentifierQuoting($identifierQuoting)
-    {
-        $this->identifierQuoting = $identifierQuoting;
-    }
-
-    /**
-     * @return array|null null if not covered by only pk
-     */
-    public function extractPrimaryKey(Criteria $criteria)
-    {
-        $pkCols = $this->getPrimaryKeys();
-        if (count($pkCols) !== count($criteria->getMap())) {
-            return null;
-        }
-
-        $pk = [];
-        foreach ($pkCols as $pkCol) {
-            $fqName = $pkCol->getFullyQualifiedName();
-            $name = $pkCol->getName();
-
-            if ($criteria->containsKey($fqName)) {
-                $value = $criteria->getValue($fqName);
-            } else if ($criteria->containsKey($name)) {
-                $value = $criteria->getValue($name);
-            } else {
-                return null;
-            }
-
-            $pk[$name] = $value;
-        }
-
-        return $pk;
-    }
-
 }

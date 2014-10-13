@@ -16,10 +16,8 @@ use Propel\Runtime\DataFetcher\PDODataFetcher;
 /**
  * PDO extension that implements ConnectionInterface and builds statements implementing StatementInterface.
  */
-class PdoConnection extends \PDO implements ConnectionInterface
+class PdoConnection extends \PDO implements SqlConnectionInterface
 {
-    use TransactionTrait;
-
     /**
      * @var string The datasource name associated to this connection
      */
@@ -111,47 +109,35 @@ class PdoConnection extends \PDO implements ConnectionInterface
     }
 
     /**
-     * Overwrite. Fixes HHVM strict issue.
+     * Executes the given callable within a transaction.
+     * This helper method takes care to commit or rollback the transaction.
      *
-     * @return bool|void
+     * In case you want the transaction to rollback just throw an Exception of any type.
+     *
+     * @param callable $callable A callable to be wrapped in a transaction
+     *
+     * @return bool|mixed Returns the result of the callable on success, or <code>true</code> when the callable doesn't return anything.
+     *
+     * @throws Exception Re-throws a possible <code>Exception</code> triggered by the callable.
      */
-    public function inTransaction()
+    public function transaction(callable $callable)
     {
-        return parent::inTransaction();
-    }
+        $this->beginTransaction();
 
-    /**
-     * Overwrite. Fixes HHVM strict issue.
-     *
-     * @param  null        $name
-     * @return string|void
-     */
-    public function lastInsertId($name = null)
-    {
-        return parent::lastInsertId($name);
-    }
+        try {
+            $result = call_user_func($callable);
 
-    /**
-     * Overwrite. Fixes HHVM strict issue.
-     *
-     * @param  string                                     $statement
-     * @param  array                                      $driver_options
-     * @return bool|\PDOStatement|StatementInterface|void
-     */
-    public function prepare($statement, $driver_options = null)
-    {
-        return parent::prepare($statement, $driver_options ?: array());
-    }
+            $this->commit();
 
-    /**
-     * Overwrite. Fixes HHVM strict issue.
-     *
-     * @param  string $string
-     * @param  int    $parameter_type
-     * @return string
-     */
-    public function quote($string, $parameter_type = \PDO::PARAM_STR)
-    {
-        return parent::quote($string, $parameter_type);
+            if ($result) {
+                return $result;
+            }
+
+            return true;
+        } catch (\Exception $e) {
+            $this->rollBack();
+
+            throw $e;
+        }
     }
 }

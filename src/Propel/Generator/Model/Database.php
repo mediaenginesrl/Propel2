@@ -10,10 +10,12 @@
 
 namespace Propel\Generator\Model;
 
-use Propel\Generator\Config\GeneratorConfigInterface;
 use Propel\Generator\Exception\EngineException;
 use Propel\Generator\Exception\InvalidArgumentException;
 use Propel\Generator\Platform\PlatformInterface;
+use Propel\Generator\Util\BehaviorLocator;
+use Propel\Generator\Config\QuickGeneratorConfig;
+use Propel\Generator\Exception\BuildException;
 
 /**
  * A class for holding application data structures.
@@ -28,13 +30,13 @@ use Propel\Generator\Platform\PlatformInterface;
  */
 class Database extends ScopedMappingModel
 {
-
+    
     use BehaviorableTrait;
-
+    
     /**
      * The database's platform.
      *
-     * @var PlatformInterface
+     * @var \Propel\Generator\Platform\PlatformInterface
      */
     private $platform;
 
@@ -71,13 +73,6 @@ class Database extends ScopedMappingModel
     private $defaultMutatorVisibility;
     private $domainMap;
     private $heavyIndexing;
-
-    /**
-     * @var boolean
-     */
-    private $identifierQuoting;
-
-    /** @var Schema */
     private $parentSchema;
 
     /**
@@ -122,7 +117,6 @@ class Database extends ScopedMappingModel
         }
 
         $this->heavyIndexing             = false;
-        $this->identifierQuoting         = false;
         $this->defaultPhpNamingMethod    = NameGeneratorInterface::CONV_METHOD_UNDERSCORE;
         $this->defaultIdMethod           = IdMethod::NATIVE;
         $this->defaultStringFormat       = static::DEFAULT_STRING_FORMAT;
@@ -145,8 +139,7 @@ class Database extends ScopedMappingModel
         $this->defaultIdMethod = $this->getAttribute('defaultIdMethod', IdMethod::NATIVE);
         $this->defaultPhpNamingMethod = $this->getAttribute('defaultPhpNamingMethod', NameGeneratorInterface::CONV_METHOD_UNDERSCORE);
         $this->heavyIndexing = $this->booleanValue($this->getAttribute('heavyIndexing'));
-        $this->identifierQuoting = $this->getAttribute('identifierQuoting') ? $this->booleanValue($this->getAttribute('identifierQuoting')) : false;
-        $this->tablePrefix = $this->getAttribute('tablePrefix', $this->getBuildProperty('generator.tablePrefix'));
+        $this->tablePrefix = $this->getAttribute('tablePrefix', $this->getBuildProperty('tablePrefix'));
         $this->defaultStringFormat = $this->getAttribute('defaultStringFormat', static::DEFAULT_STRING_FORMAT);
     }
 
@@ -172,7 +165,7 @@ class Database extends ScopedMappingModel
 
     /**
      * Returns the max column name's length.
-     *
+     * 
      * @return integer
      */
     public function getMaxColumnNameLength()
@@ -374,7 +367,7 @@ class Database extends ScopedMappingModel
     /**
      * Returns the list of all tables that have a SQL representation.
      *
-     * @return Table[]
+     * @return array
      */
     public function getTablesForSql()
     {
@@ -467,6 +460,7 @@ class Database extends ScopedMappingModel
         if (!$table instanceof Table) {
             $tbl = new Table();
             $tbl->setDatabase($this);
+            $tbl->setSchema($this->getSchema());
             $tbl->loadMapping($table);
 
             return $this->addTable($tbl);
@@ -476,6 +470,10 @@ class Database extends ScopedMappingModel
 
         if (isset($this->tablesByName[$table->getName()])) {
             throw new EngineException(sprintf('Table "%s" declared twice', $table->getName()));
+        }
+
+        if (null === $table->getSchema()) {
+            $table->setSchema($this->getSchema());
         }
 
         $this->tables[] = $table;
@@ -572,7 +570,7 @@ class Database extends ScopedMappingModel
         $oldSchema = $this->schema;
         if ($this->schema !== $schema && $this->getPlatform()) {
             $schemaDelimiter = $this->getPlatform()->getSchemaDelimiter();
-            $fixHash = function (&$array) use ($schema, $oldSchema, $schemaDelimiter) {
+            $fixHash = function(&$array) use ($schema, $oldSchema, $schemaDelimiter) {
                 foreach ($array as $k => $v) {
                     if ($schema && $this->getPlatform()->supportsSchemas()) {
                         if (false === strpos($k, $schemaDelimiter)) {
@@ -693,9 +691,7 @@ class Database extends ScopedMappingModel
     }
 
     /**
-     * Returns the configuration property identified by its name.
-     *
-     * @see \Propel\Common\Config\ConfigurationManager::getConfigProperty() method
+     * Returns the build property identified by its name.
      *
      * @param  string $name
      * @return string
@@ -703,10 +699,10 @@ class Database extends ScopedMappingModel
     public function getBuildProperty($name)
     {
         if ($config = $this->getGeneratorConfig()) {
-            return $config->getConfigProperty($name);
+            return $config->getBuildProperty($name);
         }
     }
-
+    
     /**
      * Returns the table prefix for this database.
      *
@@ -762,6 +758,15 @@ class Database extends ScopedMappingModel
         // add the referrers for the foreign keys
         $this->setupTableReferrers();
 
+        // add default behaviors to database
+        if ($defaultBehaviors = $this->getBuildProperty('behaviorDefault')) {
+            // add generic behaviors from build.properties
+            $defaultBehaviors = explode(',', $defaultBehaviors);
+            foreach ($defaultBehaviors as $behavior) {
+                $this->addBehavior([ 'name' => trim($behavior) ]);
+            }
+        }
+
         // execute database behaviors
         foreach ($this->getBehaviors() as $behavior) {
             $behavior->modifyDatabase();
@@ -780,7 +785,7 @@ class Database extends ScopedMappingModel
             $table->setupReferrers(true);
         }
     }
-
+    
     protected function registerBehavior(Behavior $behavior)
     {
         $behavior->setDatabase($this);
@@ -793,6 +798,7 @@ class Database extends ScopedMappingModel
     protected function setupTableReferrers()
     {
         foreach ($this->tables as $table) {
+            $table->doNaming();
             $table->setupReferrers();
         }
     }
@@ -803,67 +809,19 @@ class Database extends ScopedMappingModel
         foreach ($this->getTables() as $table) {
             $columns = [];
             foreach ($table->getColumns() as $column) {
-                $columns[] = sprintf("      %s %s %s %s %s %s",
+                $columns[] = sprintf("    %s %s %s %s %s %s (%s)",
                     $column->getName(),
                     $column->getType(),
-                    $column->getSize() ? '(' . $column->getSize() . ')' : '',
+                    $column->getSize(),
                     $column->isPrimaryKey() ? 'PK' : '',
                     $column->isNotNull() ? 'NOT NULL' : '',
                     $column->getDefaultValueString() ? "'".$column->getDefaultValueString()."'" : '',
-                    $column->isAutoIncrement() ? 'AUTO_INCREMENT' : ''
+                    $column->isAutoIncrement() ? 'AUTO_INCREMENT' : '',
+                    $column->getDomain()->getOriginSqlType()
                 );
             }
 
-            $fks = [];
-            foreach ($table->getForeignKeys() as $fk) {
-                $fks[] = sprintf("      %s to %s.%s (%s => %s)",
-                    $fk->getName(),
-                    $fk->getForeignSchemaName(),
-                    $fk->getForeignTableCommonName(),
-                    join(', ', $fk->getLocalColumns()),
-                    join(', ', $fk->getForeignColumns())
-                );
-            }
-
-            $indices = [];
-            foreach ($table->getIndices() as $index) {
-                $indexColumns = [];
-                foreach ($index->getColumns() as $indexColumnName) {
-                    $indexColumns[] = sprintf('%s (%s)', $indexColumnName, $index->getColumnSize($indexColumnName));
-                }
-                $indices[] = sprintf("      %s (%s)",
-                    $index->getName(),
-                    join(', ', $indexColumns)
-                );
-            }
-
-            $unices = [];
-            foreach ($table->getUnices() as $index) {
-                $unices[] = sprintf("      %s (%s)",
-                    $index->getName(),
-                    join(', ', $index->getColumns())
-                );
-            }
-
-            $tableDef = sprintf("  %s (%s):\n%s",
-                $table->getName(),
-                $table->getCommonName(),
-                implode("\n", $columns)
-            );
-
-            if ($fks) {
-                $tableDef .= "\n    FKs:\n" . implode("\n", $fks);
-            }
-
-            if ($indices) {
-                $tableDef .= "\n    indices:\n" . implode("\n", $indices);
-            }
-
-            if ($unices) {
-                $tableDef .= "\n    unices:\n". implode("\n", $unices);
-            }
-
-            $tables[] = $tableDef;
+            $tables[] = sprintf("  %s (%s): \n%s", $table->getName(), $table->getCommonName(), implode("\n", $columns));
         }
 
         return sprintf("%s:\n%s",
@@ -911,34 +869,4 @@ class Database extends ScopedMappingModel
     {
         return $this->defaultMutatorVisibility;
     }
-
-    public function __clone()
-    {
-        $tables = [];
-        foreach ($this->tables as $oldTable) {
-            $table = clone $oldTable;
-            $tables[] = $table;
-            $this->tablesByName[$table->getName()] = $table;
-            $this->tablesByLowercaseName[strtolower($table->getName())] = $table;
-            $this->tablesByPhpName[$table->getPhpName()] = $table;
-        }
-        $this->tables = $tables;
-    }
-
-    /**
-     * @return boolean
-     */
-    public function isIdentifierQuotingEnabled()
-    {
-        return $this->identifierQuoting;
-    }
-
-    /**
-     * @param boolean $identifierQuoting
-     */
-    public function setIdentifierQuoting($identifierQuoting)
-    {
-        $this->identifierQuoting = $identifierQuoting;
-    }
-
 }

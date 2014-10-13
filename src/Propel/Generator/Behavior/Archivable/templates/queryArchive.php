@@ -15,6 +15,7 @@
  */
 public function archive($con = null, $useLittleMemory = true)
 {
+    $totalArchivedObjects = 0;
     $criteria = clone $this;
     // prepare the query
     $criteria->setWith(array());
@@ -24,16 +25,18 @@ public function archive($con = null, $useLittleMemory = true)
     if ($con === null) {
         $con = Propel::getServiceContainer()->getWriteConnection(<?php echo $modelTableMap ?>::DATABASE_NAME);
     }
-
-    return $con->transaction(function () use ($con, $criteria) {
-        $totalArchivedObjects = 0;
-
+    $con->beginTransaction();
+    try {
         // archive all results one by one
         foreach ($criteria->find($con) as $object) {
             $object->archive($con);
             $totalArchivedObjects++;
         }
+        $con->commit();
+    } catch (PropelException $e) {
+        $con->rollBack();
+        throw $e;
+    }
 
-        return $totalArchivedObjects;
-    });
+    return $totalArchivedObjects;
 }

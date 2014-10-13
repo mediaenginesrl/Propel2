@@ -20,11 +20,8 @@ use Propel\Runtime\Map\TableMap;
  */
 class ModelJoin extends Join
 {
-    /** @var RelationMap */
     protected $relationMap;
-
     protected $tableMap;
-
     protected $previousJoin;
 
     public function setRelationMap(RelationMap $relationMap, $leftTableAlias = null, $relationAlias = null)
@@ -43,9 +40,6 @@ class ModelJoin extends Join
         return $this;
     }
 
-    /**
-     * @return RelationMap
-     */
     public function getRelationMap()
     {
         return $this->relationMap;
@@ -56,7 +50,7 @@ class ModelJoin extends Join
      *
      * @param TableMap $tableMap The table map to use
      *
-     * @return $this|ModelJoin The current join object, for fluid interface
+     * @return ModelJoin The current join object, for fluid interface
      */
     public function setTableMap(TableMap $tableMap)
     {
@@ -86,9 +80,6 @@ class ModelJoin extends Join
         return $this;
     }
 
-    /**
-     * @return ModelJoin
-     */
     public function getPreviousJoin()
     {
         return $this->previousJoin;
@@ -112,11 +103,6 @@ class ModelJoin extends Join
     public function hasRelationAlias()
     {
         return $this->hasRightTableAlias();
-    }
-
-    public function isIdentifierQuotingEnabled()
-    {
-        return $this->getTableMap()->isIdentifierQuotingEnabled();
     }
 
     /**
@@ -145,8 +131,6 @@ class ModelJoin extends Join
 
     public function equals($join)
     {
-        /** @var ModelJoin $join */
-
         return parent::equals($join)
             && $this->relationMap == $join->getRelationMap()
             && $this->previousJoin == $join->getPreviousJoin()

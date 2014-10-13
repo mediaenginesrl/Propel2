@@ -4,9 +4,9 @@
      */
     public static function clearRelatedInstancePool()
     {
-        // Invalidate objects in related instance pools,
+        // Invalidate objects in ".$this->getClassNameFromBuilder($joinedTableTableMapBuilder)." instance pool,
         // since one or more of them may be deleted by ON DELETE CASCADE/SETNULL rule.
-    <?php foreach ($relatedClassNames as $relatedClassName) : ?>
-    <?= $relatedClassName ?>::clearInstancePool();
-    <?php endforeach; ?>
-}
+        <?php foreach ($relatedClassNames as $relatedClassName) : ?>
+        <?= $relatedClassName ?>::clearInstancePool();
+        <?php endforeach; ?>
+    }

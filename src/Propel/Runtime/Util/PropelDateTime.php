@@ -16,6 +16,10 @@ use Propel\Runtime\Exception\PropelException;
 /**
  * DateTime subclass which supports serialization.
  *
+ * Currently Propel is not using this for storing date/time objects
+ * within model objects; however, we are keeping it in the repository
+ * because it is useful if you want to store a DateTime object in a session.
+ *
  * @author Alan Pinstein
  * @author Soenke Ruempler
  * @author Hans Lellelid
@@ -65,8 +69,6 @@ class PropelDateTime extends \DateTime
      * @param string       $dateTimeClass The class of the object to create, defaults to DateTime
      *
      * @return mixed null, or an instance of $dateTimeClass
-     *
-     * @throws PropelException
      */
     public static function newInstance($value, DateTimeZone $timeZone = null, $dateTimeClass = 'DateTime')
     {

@@ -18,6 +18,7 @@ use Propel\Generator\Model\Index;
 use Propel\Generator\Model\Table;
 use Propel\Generator\Model\PropelTypes;
 use Propel\Generator\Model\Unique;
+use Propel\Generator\Reverse\AbstractSchemaParser;
 
 /**
  * SQLite database schema parser.
@@ -53,12 +54,12 @@ class SqliteSchemaParser extends AbstractSchemaParser
         'date'       => PropelTypes::DATE,
         'time'       => PropelTypes::TIME,
         'year'       => PropelTypes::INTEGER,
-        'datetime'   => PropelTypes::DATE,
+        'datetime'   => PropelTypes::TIMESTAMP,
         'timestamp'  => PropelTypes::TIMESTAMP,
         'tinyblob'   => PropelTypes::BINARY,
         'blob'       => PropelTypes::BLOB,
-        'mediumblob' => PropelTypes::VARBINARY,
-        'longblob'   => PropelTypes::LONGVARBINARY,
+        'mediumblob' => PropelTypes::BLOB,
+        'longblob'   => PropelTypes::BLOB,
         'longtext'   => PropelTypes::CLOB,
         'tinytext'   => PropelTypes::VARCHAR,
         'mediumtext' => PropelTypes::LONGVARCHAR,
@@ -77,93 +78,67 @@ class SqliteSchemaParser extends AbstractSchemaParser
         return self::$sqliteTypeMap;
     }
 
-    public function parse(Database $database, array $additionalTables = array())
+    /**
+     *
+     */
+    public function parse(Database $database)
     {
-        if ($this->getGeneratorConfig()) {
-            $this->addVendorInfo = $this->getGeneratorConfig()->get()['migrations']['addVendorInfo'];
-        }
-
-        $this->parseTables($database);
-
-        foreach ($additionalTables as $table) {
-            $this->parseTables($database, $table);
-        }
-
-        // Now populate only columns.
-        foreach ($database->getTables() as $table) {
-            $this->addColumns($table);
-        }
-
-        // Now add indexes and constraints.
-        foreach ($database->getTables() as $table) {
-            $this->addIndexes($table);
-            $this->addForeignKeys($table);
-        }
-
-        return count($database->getTables());
-    }
-
-    protected function parseTables(Database $database, Table $filterTable = null)
-    {
-        $sql = "
+        $dataFetcher = $this->dbh->query("
         SELECT name
         FROM sqlite_master
         WHERE type='table'
-        %filter%
         UNION ALL
         SELECT name
         FROM sqlite_temp_master
         WHERE type='table'
-        %filter%
-        ORDER BY name;";
-
-        $filter = '';
-
-        if ($filterTable) {
-            if ($schema = $filterTable->getSchema()) {
-                $filter = sprintf(" AND name LIKE '%s§%%'", $schema);
-            }
-            $filter .= sprintf(" AND (name = '%s' OR name LIKE '%%§%1\$s')", $filterTable->getCommonName());
-        } else if ($schema = $database->getSchema()) {
-            $filter = sprintf(" AND name LIKE '%s§%%'", $schema);
-        }
-
-        $sql = str_replace('%filter%', $filter, $sql);
-
-        $dataFetcher = $this->dbh->query($sql);
+        ORDER BY name;");
 
         // First load the tables (important that this happen before filling out details of tables)
+        $tables = array();
         foreach ($dataFetcher as $row) {
-            $tableName = $row[0];
-            $tableSchema = '';
+            $name = $row[0];
+            $commonName = '';
 
-            if ('sqlite_' == substr($tableName, 0, 7)) {
+            if ('sqlite_' == substr($name, 0, 7)) {
                 continue;
             }
 
-            if (false !== ($pos = strpos($tableName, '§'))) {
-                $tableSchema = substr($tableName, 0, $pos);
-                $tableName = substr($tableName, $pos + 2);
-            }
-
-            $table = new Table($tableName);
-
-            if ($filterTable && $filterTable->getSchema()) {
-                $table->setSchema($filterTable->getSchema());
-            } else {
-                if (!$database->getSchema() && $tableSchema) {
-                    //we have no schema to filter, but this belongs to one, so next
+            if ($database->getSchema()) {
+                if (false !== ($pos = strpos($name, '§'))) {
+                    if ($database->getSchema()) {
+                        if ($database->getSchema() !== substr($name, 0, $pos)) {
+                            continue;
+                        } else {
+                            $commonName = substr($name, $pos+2); //2 because the delimiter § uses in UTF8 one byte more.
+                        }
+                    }
+                } else {
                     continue;
                 }
             }
 
-            if ($tableName === $this->getMigrationTable()) {
+            if ($name === $this->getMigrationTable()) {
                 continue;
             }
 
+            $table = new Table($commonName ?: $name);
             $table->setIdMethod($database->getDefaultIdMethod());
             $database->addTable($table);
+            $tables[] = $table;
         }
+
+        // Now populate only columns.
+        foreach ($tables as $table) {
+            $this->addColumns($table);
+        }
+
+        // Now add indexes and constraints.
+        foreach ($tables as $table) {
+            $this->addIndexes($table);
+            $this->addForeignKeys($table);
+        }
+
+        return count($tables);
     }
 
     /**
@@ -173,10 +148,7 @@ class SqliteSchemaParser extends AbstractSchemaParser
      */
     protected function addColumns(Table $table)
     {
-        $tableName = $table->getName();
-
-//        var_dump("PRAGMA table_info('$tableName') //");
-        $stmt = $this->dbh->query("PRAGMA table_info('$tableName')");
+        $stmt = $this->dbh->query("PRAGMA table_info('" . $table->getName() . "')");
 
         while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             $name = $row['name'];
@@ -187,7 +159,6 @@ class SqliteSchemaParser extends AbstractSchemaParser
 
             if (preg_match('/^([^\(]+)\(\s*(\d+)\s*,\s*(\d+)\s*\)$/', $fulltype, $matches)) {
                 $type = $matches[1];
-                $size = $matches[2];
                 $scale = $matches[3];
             } elseif (preg_match('/^([^\(]+)\(\s*(\d+)\s*\)$/', $fulltype, $matches)) {
                 $type = $matches[1];
@@ -208,27 +179,19 @@ class SqliteSchemaParser extends AbstractSchemaParser
             $column = new Column($name);
             $column->setTable($table);
             $column->setDomainForType($propelType);
+            $column->getDomain()->setOriginSqlType(strtolower($type));
             // We may want to provide an option to include this:
             // $column->getDomain()->replaceSqlType($type);
             $column->getDomain()->replaceSize($size);
             $column->getDomain()->replaceScale($scale);
 
             if (null !== $default) {
-                if ("'" !== substr($default, 0, 1) && strpos($default, '(')) {
-                    $defaultType = ColumnDefaultValue::TYPE_EXPR;
-                    if ('datetime(CURRENT_TIMESTAMP, \'localtime\')' === $default) {
-                            $default = 'CURRENT_TIMESTAMP';
-                        }
-                } else {
-                    $defaultType = ColumnDefaultValue::TYPE_VALUE;
-                    $default = str_replace("'", '', $default);
-                }
-                $column->getDomain()->setDefaultValue(new ColumnDefaultValue($default, $defaultType));
+                $column->getDomain()->setDefaultValue(new ColumnDefaultValue($default, ColumnDefaultValue::TYPE_VALUE));
             }
 
             $column->setNotNull($notNull);
 
-            if (0 < $row['pk']+0) {
+            if (1 == $row['pk']) {
                 $column->setPrimaryKey(true);
             }
 
@@ -255,8 +218,6 @@ class SqliteSchemaParser extends AbstractSchemaParser
 
     protected function addForeignKeys(Table $table)
     {
-        $database = $table->getDatabase();
-
         $stmt = $this->dbh->query('PRAGMA foreign_key_list("' . $table->getName() . '")');
 
         $lastId = null;
@@ -264,27 +225,22 @@ class SqliteSchemaParser extends AbstractSchemaParser
             if ($lastId !== $row['id']) {
                 $fk = new ForeignKey();
 
-                $onDelete = $row['on_delete'];
-                if ($onDelete && 'NO ACTION' !== $onDelete) {
-                    $fk->setOnDelete($onDelete);
+                $tableName   = $row['table'];
+                $tableSchema = '';
+
+                if (false !== ($pos = strpos($tableName, '§'))) {
+                    $tableName = substr($tableName, $pos + 2);
+                    $tableSchema = substr($tableName, 0, $pos);
                 }
 
-                $onUpdate = $row['on_update'];
-                if ($onUpdate && 'NO ACTION' !== $onUpdate) {
-                    $fk->setOnUpdate($onUpdate);
+                $fk->setForeignTableCommonName($tableName);
+                if ($table->getDatabase()->getSchema() != $tableSchema) {
+                    $fk->setForeignSchemaName($tableSchema);
                 }
 
-                $foreignTable = $database->getTable($row['table'], true);
-
-                if (!$foreignTable) {
-                    continue;
-                }
-
+                $fk->setOnDelete($row['on_delete']);
+                $fk->setOnUpdate($row['on_update']);
                 $table->addForeignKey($fk);
-                $fk->setForeignTableCommonName($foreignTable->getCommonName());
-                if ($table->guessSchemaName() != $foreignTable->guessSchemaName()) {
-                    $fk->setForeignSchemaName($foreignTable->guessSchemaName());
-                }
                 $lastId = $row['id'];
             }
 
@@ -301,13 +257,8 @@ class SqliteSchemaParser extends AbstractSchemaParser
 
         while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
             $name = $row['name'];
-            $internalName = $name;
 
-            if (0 === strpos($name, 'sqlite_autoindex')) {
-                $internalName = '';
-            }
-
-            $index = $row['unique'] ? new Unique($internalName) : new Index($internalName);
+            $index = $row['unique'] ? new Unique() : new Index();
 
             $stmt2 = $this->dbh->query("PRAGMA index_info('".$name."')");
             while ($row2 = $stmt2->fetch(\PDO::FETCH_ASSOC)) {
@@ -322,11 +273,7 @@ class SqliteSchemaParser extends AbstractSchemaParser
                 }
             }
 
-            if ($index instanceof Unique) {
-                $table->addUnique($index);
-            } else {
-                $table->addIndex($index);
-            }
+            $table->addIndex($index);
         }
     }
 }

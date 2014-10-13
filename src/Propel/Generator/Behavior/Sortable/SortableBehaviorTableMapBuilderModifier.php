@@ -60,7 +60,7 @@ class SortableBehaviorTableMapBuilderModifier
 
     protected function getColumnConstant($name)
     {
-        return $this->behavior->getColumnForParameter($name)->getName();
+        return strtoupper($this->behavior->getColumnForParameter($name)->getName());
     }
 
 }

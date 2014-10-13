@@ -22,8 +22,6 @@ class IdMethodParameter extends MappingModel
 {
     private $name;
     private $value;
-
-    /** @var Table */
     private $parentTable;
 
     protected function setupObject()

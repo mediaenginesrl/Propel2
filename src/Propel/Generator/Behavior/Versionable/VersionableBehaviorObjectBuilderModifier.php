@@ -110,7 +110,7 @@ class VersionableBehaviorObjectBuilderModifier
     public function postDelete($builder)
     {
         $this->builder = $builder;
-        if (!$builder->getPlatform()->supportsNativeDeleteTrigger() && !$builder->get()['generator']['objectModel']['emulateForeignKeyConstraints']) {
+        if (!$builder->getPlatform()->supportsNativeDeleteTrigger() && !$builder->getBuildProperty('emulateForeignKeyConstraints')) {
             $script = "// emulate delete cascade
 {$this->getVersionQueryClassName()}::create()
     ->filterBy{$this->table->getPhpName()}(\$this)
@@ -172,7 +172,7 @@ protected \$enforceVersion = false;
  * Wrap the setter for version value
  *
  * @param   string
- * @return  \$this|" . $this->table->getPhpName() . "
+ * @return  " . $this->table->getPhpName() . "
  */
 public function setVersion(\$v)
 {
@@ -203,7 +203,7 @@ public function getVersion()
 /**
  * Enforce a new Version of this object upon next save.
  *
- * @return \$this|{$objectClass}
+ * @return {$objectClass}
  */
 public function enforceVersioning()
 {
@@ -299,7 +299,7 @@ public function addVersion(\$con = null)
             $fkVersionColumnName = $fk->getLocalColumnName() . '_version';
             $fkVersionColumnPhpName = $versionTable->getColumn($fkVersionColumnName)->getPhpName();
             $script .= "
-    if ((\$related = \$this->get{$fkGetter}(null, \$con)) && \$related->getVersion()) {
+    if ((\$related = \$this->get{$fkGetter}(\$con)) && \$related->getVersion()) {
         \$version->set{$fkVersionColumnPhpName}(\$related->getVersion());
     }";
         }
@@ -309,7 +309,7 @@ public function addVersion(\$con = null)
             $idsColumn = $this->behavior->getReferrerIdsColumn($fk);
             $versionsColumn = $this->behavior->getReferrerVersionsColumn($fk);
             $script .= "
-    if (\$relateds = \$this->get{$fkGetter}(null, \$con)->toKeyValue('{$fk->getForeignColumn()->getPhpName()}', 'Version')) {
+    if (\$relateds = \$this->get{$fkGetter}(\$con)->toKeyValue('{$fk->getForeignColumn()->getPhpName()}', 'Version')) {
         \$version->set{$idsColumn->getPhpName()}(array_keys(\$relateds));
         \$version->set{$versionsColumn->getPhpName()}(array_values(\$relateds));
     }";
@@ -332,7 +332,7 @@ public function addVersion(\$con = null)
  * @param   integer \$versionNumber The version number to read
  * @param   ConnectionInterface \$con The connection to use
  *
- * @return  \$this|{$ARclassName} The current object (for fluent API support)
+ * @return  {$ARclassName} The current object (for fluent API support)
  */
 public function toVersion(\$versionNumber, \$con = null)
 {
@@ -363,7 +363,7 @@ public function toVersion(\$versionNumber, \$con = null)
  * @param ConnectionInterface   \$con the connection to use
  * @param array                 \$loadedObjects objects that been loaded in a chain of populateFromVersion calls on referrer or fk objects.
  *
- * @return \$this|{$ARclassName} The current object (for fluent API support)
+ * @return {$ARclassName} The current object (for fluent API support)
  */
 public function populateFromVersion(\$version, \$con = null, &\$loadedObjects = array())
 {";
@@ -377,7 +377,7 @@ public function populateFromVersion(\$version, \$con = null, &\$loadedObjects = 
         $plural = false;
         foreach ($this->behavior->getVersionableFks() as $fk) {
             $foreignTable = $fk->getForeignTable();
-            $foreignVersionTable = $fk->getForeignTable()->getBehavior($this->behavior->getId())->getVersionTable();
+            $foreignVersionTable = $fk->getForeignTable()->getBehavior($this->behavior->getName())->getVersionTable();
             $relatedClassName = $this->builder->getClassNameFromBuilder($this->builder->getNewStubObjectBuilder($foreignTable));
             $relatedVersionQueryClassName = $this->builder->getClassNameFromBuilder($this->builder->getNewStubQueryBuilder($foreignVersionTable));
             $fkColumnName = $fk->getLocalColumnName();
@@ -407,7 +407,7 @@ public function populateFromVersion(\$version, \$con = null, &\$loadedObjects = 
             $plural = false;
             $fkPhpName = $this->builder->getRefFKPhpNameAffix($fk, $plural);
             $foreignTable = $fk->getTable();
-            $foreignBehavior = $foreignTable->getBehavior($this->behavior->getId());
+            $foreignBehavior = $foreignTable->getBehavior($this->behavior->getName());
             $foreignVersionTable = $foreignBehavior->getVersionTable();
             $fkColumnIds = $this->behavior->getReferrerIdsColumn($fk);
             $fkColumnVersions = $this->behavior->getReferrerVersionsColumn($fk);
@@ -527,7 +527,7 @@ public function getOneVersion(\$versionNumber, \$con = null)
  *
  * @param   ConnectionInterface \$con the connection to use
  *
- * @return  ObjectCollection|{$versionARClassName}[] A list of {$versionARClassName} objects
+ * @return  ObjectCollection A list of {$versionARClassName} objects
  */
 public function getAllVersions(\$con = null)
 {
@@ -682,7 +682,7 @@ public function compareVersions(\$fromVersionNumber, \$toVersionNumber, \$keys =
  * retrieve the last \$number versions.
  *
  * @param Integer \$number the number of record to return.
- * @return PropelCollection|{$versionARClassName}[] List of {$versionARClassName} objects
+ * @return PropelCollection|array {$versionARClassName}[] List of {$versionARClassName} objects
  */
 public function getLastVersions(\$number = 10, \$criteria = null, \$con = null)
 {

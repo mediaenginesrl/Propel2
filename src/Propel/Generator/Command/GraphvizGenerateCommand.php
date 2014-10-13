@@ -13,6 +13,7 @@ namespace Propel\Generator\Command;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Output\Output;
 use Propel\Generator\Manager\GraphvizManager;
 
 /**
@@ -42,18 +43,17 @@ class GraphvizGenerateCommand extends AbstractCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $configOptions = array();
-        if ($input->getOption('input-dir') !== '.'){
-            $configOptions['propel']['paths']['schemaDir'] = $input->getOption('input-dir');
-        }
-        $generatorConfig = $this->getGeneratorConfig($configOptions, $input);
+        $generatorConfig = $this->getGeneratorConfig(array(
+            'propel.platform.class'     => $input->getOption('platform'),
+            'propel.packageObjectModel' => true,
+        ), $input);
 
         $this->createDirectory($input->getOption('output-dir'));
 
         $manager = new GraphvizManager();
         $manager->setGeneratorConfig($generatorConfig);
-        $manager->setSchemas($this->getSchemas($generatorConfig->getSection('paths')['schemaDir'], $input->getOption('recursive')));
-        $manager->setLoggerClosure(function ($message) use ($input, $output) {
+        $manager->setSchemas($this->getSchemas($input->getOption('input-dir'), $input->getOption('recursive')));
+        $manager->setLoggerClosure(function($message) use ($input, $output) {
             if ($input->getOption('verbose')) {
                 $output->writeln($message);
             }

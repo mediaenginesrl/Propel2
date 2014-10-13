@@ -12,15 +12,7 @@ namespace Propel\Generator\Builder\Util;
 
 use Propel\Generator\Config\GeneratorConfigInterface;
 use Propel\Generator\Exception\SchemaException;
-use Propel\Generator\Model\Behavior;
-use Propel\Generator\Model\Column;
-use Propel\Generator\Model\Database;
-use Propel\Generator\Model\ForeignKey;
-use Propel\Generator\Model\Index;
 use Propel\Generator\Model\Schema;
-use Propel\Generator\Model\Table;
-use Propel\Generator\Model\Unique;
-use Propel\Generator\Model\VendorInfo;
 use Propel\Generator\Platform\PlatformInterface;
 
 /**
@@ -39,33 +31,15 @@ class SchemaReader
     /** enables debug output */
     const DEBUG = false;
 
-    /** @var Schema  */
     private $schema;
-
-    /** @var Database */
     private $currDB;
-
-    /** @var Table */
     private $currTable;
-
-    /** @var Column */
     private $currColumn;
-
-    /** @var ForeignKey */
     private $currFK;
-
-    /** @var Index */
     private $currIndex;
-
-    /** @var Unique */
     private $currUnique;
-
-    /** @var Behavior */
     private $currBehavior;
-
-    /** @var VendorInfo */
     private $currVendorObject;
-
     private $isForReferenceOnly;
     private $currentPackage;
     private $currentXmlFile;
@@ -232,15 +206,11 @@ class SchemaReader
                     break;
 
                 case 'index':
-                    $this->currIndex = new Index();
-                    $this->currIndex->setTable($this->currTable);
-                    $this->currIndex->loadMapping($attributes);
+                    $this->currIndex = $this->currTable->addIndex($attributes);
                     break;
 
                 case 'unique':
-                    $this->currUnique = new Unique();
-                    $this->currUnique->setTable($this->currTable);
-                    $this->currUnique->loadMapping($attributes);
+                    $this->currUnique = $this->currTable->addUnique($attributes);
                     break;
 
                 case 'vendor':
@@ -363,12 +333,6 @@ class SchemaReader
 
     public function endElement($parser, $name)
     {
-        if ('index' === $name) {
-            $this->currTable->addIndex($this->currIndex);
-        } else if ('unique' === $name) {
-            $this->currTable->addUnique($this->currUnique);
-        }
-
         if (self::DEBUG) {
             print('endElement(' . $name . ") called\n");
         }

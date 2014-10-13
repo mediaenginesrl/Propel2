@@ -13,23 +13,25 @@ namespace Propel\Generator\Command;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Output\Output;
 use Propel\Generator\Manager\SqlManager;
+use Propel\Generator\Exception\InvalidArgumentException;
 
 /**
  * @author William Durand <william.durand1@gmail.com>
  */
 class SqlInsertCommand extends AbstractCommand
 {
+    const DEFAULT_OUTPUT_DIRECTORY  = 'generated-sql';
+
     /**
      * {@inheritdoc}
      */
     protected function configure()
     {
-        parent::configure();
-        
         $this
-            ->addOption('sql-dir', null, InputOption::VALUE_REQUIRED, 'The SQL files directory')
-            ->addOption('connection', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'Connection to use. Example: \'bookstore=mysql:host=127.0.0.1;dbname=test;user=root;password=foobar\' where "bookstore" is your propel database name (used in your schema.xml)')
+            ->addOption('input-dir', null, InputOption::VALUE_REQUIRED,  'The input directory', self::DEFAULT_OUTPUT_DIRECTORY)
+            ->addOption('connection', null, InputOption::VALUE_IS_ARRAY | InputOption::VALUE_REQUIRED, 'Connection to use. Example: bookstore=mysql:host=127.0.0.1;dbname=test;user=root;password=foobar')
             ->setName('sql:insert')
             ->setAliases(array('insert-sql'))
             ->setDescription('Insert SQL statements')
@@ -43,17 +45,12 @@ class SqlInsertCommand extends AbstractCommand
     {
         $manager = new SqlManager();
 
-        $configOptions = array();
-        if ($sqlDir = $input->getOption('sql-dir')) {
-            $configOptions['propel']['paths']['sqlDir'] = $sqlDir;
-        }
-
-        $generatorConfig = $this->getGeneratorConfig($configOptions, $input);
+        $generatorConfig = $this->getGeneratorConfig(array(), $input);
 
         $connections = array();
         $optionConnections = $input->getOption('connection');
         if (!$optionConnections) {
-            $connections = $generatorConfig->getBuildConnections();
+            $connections = $generatorConfig->getBuildConnections($input->getOption('input-dir'));
         } else {
             foreach ($optionConnections as $connection) {
                 list($name, $dsn, $infos) = $this->parseConnection($connection);
@@ -62,12 +59,12 @@ class SqlInsertCommand extends AbstractCommand
         }
 
         $manager->setConnections($connections);
-        $manager->setLoggerClosure(function ($message) use ($input, $output) {
+        $manager->setLoggerClosure(function($message) use ($input, $output) {
             if ($input->getOption('verbose')) {
                 $output->writeln($message);
             }
         });
-        $manager->setWorkingDirectory($generatorConfig->getSection('paths')['sqlDir']);
+        $manager->setWorkingDirectory($input->getOption('input-dir'));
 
         $manager->insertSql();
     }

@@ -12,7 +12,6 @@ namespace Propel\Generator\Builder\Sql\Pgsql;
 
 use Propel\Generator\Builder\Sql\DataSQLBuilder;
 use Propel\Generator\Builder\Util\DataRow;
-use Propel\Generator\Model\IdMethod;
 
 /**
  * PostgreSQL class for building data dump SQL.

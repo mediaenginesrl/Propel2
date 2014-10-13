@@ -10,8 +10,6 @@
 
 namespace Propel\Runtime\Util;
 
-use Propel\Runtime\ActiveQuery\Criteria;
-
 /**
  * Proxy for conditional statements in a fluid interface.
  * This class replaces another class for wrong statements,
@@ -35,7 +33,6 @@ use Propel\Runtime\ActiveQuery\Criteria;
  */
 class PropelConditionalProxy
 {
-    /** @var Criteria */
     protected $criteria;
 
     protected $parent;
@@ -46,7 +43,7 @@ class PropelConditionalProxy
 
     protected $parentState;
 
-    public function __construct(Criteria $criteria, $cond, self $proxy = null)
+    public function __construct($criteria, $cond, $proxy = null)
     {
         $this->criteria = $criteria;
         $this->wasTrue = false;
@@ -66,7 +63,7 @@ class PropelConditionalProxy
      *
      * @param boolean $cond
      *
-     * @return $this|PropelConditionalProxy|Criteria
+     * @return PropelConditionalProxy
      */
     public function _if($cond)
     {
@@ -78,7 +75,7 @@ class PropelConditionalProxy
      *
      * @param boolean $cond ignored
      *
-     * @return $this|PropelConditionalProxy|Criteria
+     * @return PropelConditionalProxy
      */
     public function _elseif($cond)
     {
@@ -88,7 +85,7 @@ class PropelConditionalProxy
     /**
      * Allows for conditional statements in a fluid interface.
      *
-     * @return $this|PropelConditionalProxy|Criteria
+     * @return PropelConditionalProxy
      */
     public function _else()
     {
@@ -99,7 +96,7 @@ class PropelConditionalProxy
      * Returns the parent object
      * Allows for conditional statements in a fluid interface.
      *
-     * @return $this|PropelConditionalProxy|Criteria
+     * @return PropelConditionalProxy|Criteria
      */
     public function _endif()
     {

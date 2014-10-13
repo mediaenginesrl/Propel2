@@ -10,9 +10,6 @@
 
 namespace Propel\Runtime\Formatter;
 
-use Propel\Runtime\ActiveQuery\ModelWith;
-use Propel\Runtime\ActiveRecord\ActiveRecordInterface;
-use Propel\Runtime\Collection\Collection;
 use Propel\Runtime\Propel;
 use Propel\Runtime\Exception\PropelException;
 use Propel\Runtime\ActiveQuery\BaseModelCriteria;
@@ -31,14 +28,12 @@ abstract class AbstractFormatter
 
     protected $tableMap;
 
-    /** @var ModelWith[] $with */
     protected $with;
 
     protected $asColumns;
 
     protected $hasLimit;
 
-    /** @var ActiveRecordInterface[] */
     protected $currentObjects;
 
     protected $collectionName;
@@ -87,7 +82,7 @@ abstract class AbstractFormatter
      * @param BaseModelCriteria    $criteria
      * @param DataFetcherInterface $dataFetcher
      *
-     * @return $this|AbstractFormatter The current formatter object
+     * @return AbstractFormatter The current formatter object
      */
     public function init(BaseModelCriteria $criteria, DataFetcherInterface $dataFetcher = null)
     {
@@ -95,7 +90,7 @@ abstract class AbstractFormatter
         $this->setClass($criteria->getModelName());
         $this->setWith($criteria->getWith());
         $this->asColumns = $criteria->getAsColumns();
-        $this->hasLimit = $criteria->getLimit() != -1;
+        $this->hasLimit = $criteria->getLimit() != 0;
         if ($dataFetcher) {
             $this->setDataFetcher($dataFetcher);
         }
@@ -166,7 +161,6 @@ abstract class AbstractFormatter
         $collection = array();
 
         if ($class = $this->getCollectionClassName()) {
-            /** @var Collection $collection */
             $collection = new $class();
             $collection->setModel($this->class);
             $collection->setFormatter($this);
@@ -183,11 +177,11 @@ abstract class AbstractFormatter
     /**
      * Formats an ActiveRecord object
      *
-     * @param ActiveRecordInterface $record the object to format
+     * @param BaseObject $record the object to format
      *
-     * @return ActiveRecordInterface The original record
+     * @return BaseObject The original record
      */
-    public function formatRecord(ActiveRecordInterface $record = null)
+    public function formatRecord($record = null)
     {
         return $record;
     }
@@ -231,15 +225,12 @@ abstract class AbstractFormatter
      * @param int    $col   Offset of the object in the list of objects to hydrate
      * @param string $class Propel model object class
      *
-     * @return ActiveRecordInterface
+     * @return BaseObject
      */
     protected function getWorkerObject($col, $class)
     {
         if (isset($this->currentObjects[$col])) {
-            $this->currentObjects[$col]->clearAllReferences();
             $this->currentObjects[$col]->clear();
-            
-            // TODO: also consider to return always a new $class(), it's a little fast that clear the previous and is must secure to clear all data/references!
         } else {
             $this->currentObjects[$col] = new $class();
         }
@@ -250,12 +241,12 @@ abstract class AbstractFormatter
     /**
      * Gets a Propel object hydrated from a selection of columns in statement row
      *
-     * @param array  $row   associative array indexed by column number,
-     *                      as returned by DataFetcher::fetch()
+     * @param array $row associative array indexed by column number,
+     *                   as returned by DataFetcher::fetch()
      * @param string $class The classname of the object to create
      * @param int    $col   The start column for the hydration (modified)
      *
-     * @return ActiveRecordInterface
+     * @return BaseObject
      */
     public function getSingleObjectFromRow($row, $class, &$col = 0)
     {

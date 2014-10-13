@@ -24,7 +24,6 @@ class DatabaseDiff
     protected $removedTables;
     protected $modifiedTables;
     protected $renamedTables;
-    protected $possibleRenamedTables;
 
     public function __construct()
     {
@@ -32,7 +31,6 @@ class DatabaseDiff
         $this->removedTables  = [];
         $this->modifiedTables = [];
         $this->renamedTables  = [];
-        $this->possibleRenamedTables  = [];
     }
 
     /**
@@ -67,28 +65,9 @@ class DatabaseDiff
     }
 
     /**
-     * @return string[]
-     */
-    public function getPossibleRenamedTables()
-    {
-        return $this->possibleRenamedTables;
-    }
-
-    /**
-     * Adds a possible renamed table.
-     *
-     * @param string $fromName
-     * @param string $toName
-     */
-    public function addPossibleRenamedTable($fromName, $toName)
-    {
-        $this->possibleRenamedTables[$fromName] = $toName;
-    }
-
-    /**
      * Returns the list of added tables.
      *
-     * @return Table[]
+     * @return array
      */
     public function getAddedTables()
     {
@@ -150,7 +129,7 @@ class DatabaseDiff
     /**
      * Returns the list of removed tables.
      *
-     * @return Table[]
+     * @return array
      */
     public function getRemovedTables()
     {

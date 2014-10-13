@@ -10,7 +10,6 @@
 
 namespace Propel\Generator\Behavior\AggregateColumn;
 
-use Propel\Generator\Builder\Om\ObjectBuilder;
 use Propel\Generator\Model\Behavior;
 
 /**
@@ -28,16 +27,6 @@ class AggregateColumnBehavior extends Behavior
         'foreign_table'  => null,
         'foreign_schema' => null,
     );
-
-    /**
-     * Multiple aggregates on the same table is OK.
-     *
-     * @return bool
-     */
-    public function allowMultiple()
-    {
-        return true;
-    }
 
     /**
      * Add the aggregate key to the current table
@@ -62,31 +51,25 @@ class AggregateColumnBehavior extends Behavior
         if (!$foreignTable->hasBehavior('concrete_inheritance_parent')) {
             $relationBehavior = new AggregateColumnRelationBehavior();
             $relationBehavior->setName('aggregate_column_relation');
-            $relationBehavior->setId('aggregate_column_relation_'.$this->getId());
             $relationBehavior->addParameter(array('name' => 'foreign_table', 'value' => $table->getName()));
-            $relationBehavior->addParameter(array('name' => 'aggregate_name', 'value' => $this->getColumn()->getPhpName()));
             $relationBehavior->addParameter(array('name' => 'update_method', 'value' => 'update' . $this->getColumn()->getPhpName()));
             $foreignTable->addBehavior($relationBehavior);
         }
     }
 
-    public function objectMethods(ObjectBuilder $builder)
+    public function objectMethods($builder)
     {
         if (!$this->getParameter('foreign_table')) {
             throw new \InvalidArgumentException(sprintf('You must define a \'foreign_table\' parameter for the \'aggregate_column\' behavior in the \'%s\' table', $this->getTable()->getName()));
         }
         $script = '';
-        $script .= $this->addObjectCompute($builder);
-        $script .= $this->addObjectUpdate($builder);
+        $script .= $this->addObjectCompute();
+        $script .= $this->addObjectUpdate();
 
         return $script;
     }
 
-    /**
-     * @param ObjectBuilder $builder
-     * @return string
-     */
-    protected function addObjectCompute(ObjectBuilder $builder)
+    protected function addObjectCompute()
     {
         $conditions = array();
         if ($this->getParameter('condition')) {
@@ -105,10 +88,9 @@ class AggregateColumnBehavior extends Behavior
                 .$database->getPlatform()->getSchemaDelimiter()
                 .$tableName;
         }
-
         $sql = sprintf('SELECT %s FROM %s WHERE %s',
             $this->getParameter('expression'),
-            $builder->getTable()->quoteIdentifier($tableName),
+            $database->getPlatform()->quoteIdentifier($tableName),
             implode(' AND ', $conditions)
         );
 

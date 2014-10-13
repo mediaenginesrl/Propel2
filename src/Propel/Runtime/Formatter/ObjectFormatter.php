@@ -10,7 +10,6 @@
 
 namespace Propel\Runtime\Formatter;
 
-use Propel\Runtime\ActiveRecord\ActiveRecordInterface;
 use Propel\Runtime\Exception\LogicException;
 use Propel\Runtime\DataFetcher\DataFetcherInterface;
 
@@ -59,11 +58,6 @@ class ObjectFormatter extends AbstractFormatter
 
     public function getCollectionClassName()
     {
-        $collectionClass = $this->getClass().'Collection';
-        if (class_exists($collectionClass)) {
-            return $collectionClass;
-        }
-
         return '\Propel\Runtime\Collection\ObjectCollection';
     }
 
@@ -96,9 +90,9 @@ class ObjectFormatter extends AbstractFormatter
      * The following objects (the ones added by way of ModelCriteria::with()) are linked to the first one
      *
      * @param array $row associative array indexed by column number,
-     *                   as returned by DataFetcher::fetch()
+     *                      as returned by DataFetcher::fetch()
      *
-     * @return ActiveRecordInterface
+     * @return BaseObject
      */
     public function getAllObjectsFromRow($row)
     {

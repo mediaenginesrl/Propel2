@@ -10,7 +10,6 @@
 
 namespace Propel\Runtime\Formatter;
 
-use Propel\Runtime\ActiveRecord\ActiveRecordInterface;
 use Propel\Runtime\Exception\LogicException;
 use Propel\Runtime\DataFetcher\DataFetcherInterface;
 
@@ -90,11 +89,11 @@ class ArrayFormatter extends AbstractFormatter
     /**
      * Formats an ActiveRecord object
      *
-     * @param ActiveRecordInterface $record the object to format
+     * @param BaseObject $record the object to format
      *
      * @return array The original record turned into an array
      */
-    public function formatRecord(ActiveRecordInterface $record = null)
+    public function formatRecord($record = null)
     {
         return $record ? $record->toArray() : array();
     }
