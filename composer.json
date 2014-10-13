@@ -1,18 +1,18 @@
 {
-    "name": "propel/propel",
+    "name": "mediaenginesrl/propel2",
     "type": "library",
-    "description": "Propel2 is an open-source Object-Relational Mapping (ORM) for PHP 5.4",
+    "description": "mediaengine version",
     "keywords": [
         "ORM",
         "persistence",
         "Active Record"
     ],
-    "homepage": "http://www.propelorm.org/",
+    "homepage": "http://www.mediaengine.it/",
     "license": "MIT",
     "authors": [
         {
-            "name": "William Durand",
-            "email": "william.durand1@gmail.com"
+            "name": "mediaengine",
+            "email": "info@mediaengine.it"
         }
     ],
     "require": {
